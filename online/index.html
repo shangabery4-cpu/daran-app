@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ckb-IQ" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b7060">
+  <title>دارەجات | بنەمای وەشانی ئۆنلاین</title>
+  <link rel="icon" href="../icon-192.png">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-icon" aria-hidden="true">🏫</span><div><strong>دارەجات</strong><small>بنەمای وەشانی ئۆنلاین • کوردیی سۆرانی</small></div></div>
+    <div class="account"><span id="connection-badge" class="badge">ئامادە دەکرێت…</span><button id="logout" type="button" class="secondary" hidden>دەرچوون</button></div>
+  </header>
+
+  <main class="container">
+    <section id="setup" class="notice warning" role="status">
+      <h1>ڕێکخستنی ئۆنلاین هێشتا تەواو نەکراوە</h1>
+      <p>بۆ چالاککردن، پڕۆژەی Firebase ـی خۆت دروست بکە و ڕێکخستنە گشتییەکان لە <code>online/config.js</code> دابنێ. تا ئەو کاتە هیچ زانیارییەکی قوتابی نانێردرێت.</p>
+      <p>ڕێنمایی تەواو لە <code>online/README.md</code> ـدایە.</p>
+    </section>
+
+    <section id="login-panel" class="auth-panel" hidden>
+      <div class="intro"><span class="emoji" aria-hidden="true">🔐</span><h1>چوونەژوورەوەی پارێزراو</h1><p>تەنها بە هەژمارێک کە لە Firebase Authentication دروست کراوە.</p></div>
+      <form id="login-form" autocomplete="on">
+        <label for="email">ئیمەیڵ</label>
+        <input id="email" name="email" type="email" autocomplete="username" inputmode="email" required placeholder="name@example.com">
+        <label for="password">وشەی نهێنی</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required minlength="6" placeholder="وشەی نهێنیی هەژمارەکەت">
+        <button id="login-submit" class="primary" type="submit">چوونەژوورەوە</button>
+      </form>
+      <p class="hint">لەم وەشانەدا وشەی نهێنی لە LocalStorage ناپاشەکەوتکرێت. دروستکردنی هەژمار تەنها لە Firebase Console دەکرێت.</p>
+    </section>
+
+    <section id="dashboard" hidden>
+      <div class="page-heading"><div><h1>داشبۆردی قوتابخانە</h1><p id="user-summary">—</p></div><div class="field"><label for="work-date">ڕۆژ</label><input id="work-date" type="date"></div></div>
+      <div class="stats" aria-label="کورتەی ئامادەبوون">
+        <article><span>کۆی قوتابی</span><strong id="count-total">٠</strong></article>
+        <article><span>ئامادە</span><strong id="count-present">٠</strong></article>
+        <article><span>نائامادە</span><strong id="count-absent">٠</strong></article>
+        <article><span>مۆڵەت‌پێدراو</span><strong id="count-excused">٠</strong></article>
+      </div>
+      <section id="student-entry" class="panel" hidden>
+        <h2>زیادکردنی قوتابی</h2>
+        <form id="student-form" class="inline-form">
+          <div><label for="student-name">ناوی قوتابی</label><input id="student-name" type="text" maxlength="100" required placeholder="ناوی تەواو"></div>
+          <div><label for="student-class">پۆل / لق</label><input id="student-class" type="text" maxlength="40" required placeholder="بۆ نموونە ٧-ئ"></div>
+          <button class="primary" type="submit">زیادکردن</button>
+        </form>
+      </section>
+      <section class="panel">
+        <div class="table-heading"><h2>تۆماری ڕۆژانە</h2><div class="filters"><button id="refresh" type="button" class="secondary">نوێکردنەوە</button><label class="sr-only" for="class-filter">پۆل</label><select id="class-filter"><option value="">هەموو پۆلەکان</option></select><label class="sr-only" for="student-search">گەڕان</label><input id="student-search" type="search" placeholder="گەڕان بە ناوی قوتابی…"></div></div>
+        <div class="table-wrap"><table><thead><tr><th>ناوی قوتابی</th><th>پۆل</th><th>دۆخی ڕۆژ</th><th>پاشەکەوتکردن</th></tr></thead><tbody id="student-rows"><tr><td colspan="4" class="empty">زانیاری بار دەکرێت…</td></tr></tbody></table></div>
+        <p class="hint">گۆڕانکاری تەنها کاتێک پاشەکەوت دەبێت کە سێرڤەر وەڵامی سەرکەوتوو بدات. دووبارە نووسین بۆ دۆخی هەمان ڕۆژ ناکرێت.</p>
+      </section>
+    </section>
+    <p id="message" class="message" role="status" aria-live="polite" hidden></p>
+  </main>
+  <footer>وەشانی بنەڕەتی ئۆنلاین — تەنها بۆ تاقیکردنەوە تا پشکنینی ئەمنی و کارایی تەواو دەبێت.</footer>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

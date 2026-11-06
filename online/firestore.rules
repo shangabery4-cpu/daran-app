@@ -1,0 +1,82 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function memberPath(schoolId) {
+      return /databases/$(database)/documents/schools/$(schoolId)/members/$(request.auth.uid);
+    }
+
+    function isMember(schoolId) {
+      return signedIn()
+        && exists(memberPath(schoolId))
+        && get(memberPath(schoolId)).data.active == true
+        && get(memberPath(schoolId)).data.role in ['admin', 'staff'];
+    }
+
+    function isAdmin(schoolId) {
+      return isMember(schoolId) && get(memberPath(schoolId)).data.role == 'admin';
+    }
+
+    function isWriter(schoolId) {
+      return isMember(schoolId);
+    }
+
+    function validStudent() {
+      return request.resource.data.keys().hasOnly(['name', 'className', 'active', 'createdAt'])
+        && request.resource.data.keys().hasAll(['name', 'className', 'active', 'createdAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 100
+        && request.resource.data.className is string
+        && request.resource.data.className.size() > 0
+        && request.resource.data.className.size() <= 40
+        && request.resource.data.active is bool;
+    }
+
+    function validAttendance() {
+      return request.resource.data.keys().hasOnly(['status', 'updatedAt', 'updatedBy'])
+        && request.resource.data.keys().hasAll(['status', 'updatedAt', 'updatedBy'])
+        && request.resource.data.status in ['present', 'absent', 'excused']
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    match /schools/{schoolId} {
+      allow get: if isMember(schoolId);
+      allow list, create, update, delete: if false;
+
+      match /members/{uid} {
+        // A user can read their membership but cannot grant themselves admin rights.
+        allow get: if signedIn() && (request.auth.uid == uid || isAdmin(schoolId));
+        allow list: if isAdmin(schoolId);
+        allow create, update, delete: if false;
+      }
+
+      match /students/{studentId} {
+        allow read: if isMember(schoolId);
+        allow create: if isAdmin(schoolId)
+          && validStudent()
+          && request.resource.data.createdAt == request.time;
+        allow update: if isAdmin(schoolId)
+          && validStudent()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'className', 'active']);
+        allow delete: if false;
+      }
+
+      match /days/{dateId}/attendance/{studentId} {
+        allow read: if isMember(schoolId)
+          && dateId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+        allow create, update: if isWriter(schoolId)
+          && dateId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && exists(/databases/$(database)/documents/schools/$(schoolId)/students/$(studentId))
+          && validAttendance();
+        allow delete: if false;
+      }
+    }
+
+    // All unspecified collections, including account/license paths, are denied.
+  }
+}
