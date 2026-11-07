@@ -1,6 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js';
-import { getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc, serverTimestamp, query, orderBy } from 'https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js';
+import { getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, serverTimestamp, query, orderBy } from 'https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js';
 import { firebaseConfig, schoolId } from './config.js';
 
 // The new online foundation is independent of the legacy Daragat activation code.
@@ -121,7 +121,7 @@ async function loadDay() {
 function rowMessage(text) {
   const row = document.createElement('tr');
   const cell = document.createElement('td');
-  cell.colSpan = 4;
+  cell.colSpan = state.role === 'admin' ? 5 : 4;
   cell.className = 'empty';
   cell.textContent = text;
   row.append(cell);
@@ -146,12 +146,16 @@ function updateCounters() {
   }
 }
 
-function render() {
-  updateCounters();
+function visibleStudents() {
   const needle = $('student-search').value.trim().toLocaleLowerCase();
   const selectedClass = $('class-filter').value;
-  const students = state.students.filter((item) => (!selectedClass || item.className === selectedClass)
+  return state.students.filter((item) => (!selectedClass || item.className === selectedClass)
     && (!needle || item.name.toLocaleLowerCase().includes(needle)));
+}
+
+function render() {
+  updateCounters();
+  const students = visibleStudents();
   const body = $('student-rows');
   body.replaceChildren();
   if (!students.length) { body.append(rowMessage('هیچ قوتابییەک نەدۆزرایەوە.')); return; }
@@ -176,6 +180,17 @@ function render() {
     button.addEventListener('click', () => saveAttendance(student, select, button));
     action.append(button);
     row.append(name, className, statusCell, action);
+    if (state.role === 'admin') {
+      const manage = document.createElement('td');
+      manage.className = 'manage-cell';
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'secondary edit-button';
+      edit.textContent = 'دەستکاری / گواستنەوە';
+      edit.addEventListener('click', () => editStudent(student));
+      manage.append(edit);
+      row.append(manage);
+    }
     fragment.append(row);
   }
   body.append(fragment);
@@ -227,6 +242,74 @@ async function addStudent(event) {
   }
 }
 
+function editStudent(student) {
+  if (state.role !== 'admin' || state.busy) return;
+  $('edit-student-id').value = student.id;
+  $('edit-student-name').value = student.name;
+  $('edit-student-class').value = student.className;
+  $('student-dialog').showModal();
+  $('edit-student-name').focus();
+}
+
+async function saveStudentEdits(event) {
+  event.preventDefault();
+  if (state.role !== 'admin' || state.busy || !state.user) return;
+  const id = $('edit-student-id').value;
+  const item = state.students.find((student) => student.id === id);
+  if (!item) { notify('قوتابی نەدۆزرایەوە. نوێکردنەوە بکە.', true); return; }
+  const name = $('edit-student-name').value.trim();
+  const className = $('edit-student-class').value.trim();
+  if (!name || !className || name.length > 100 || className.length > 40) {
+    notify('ناو و پۆل بە درستی پڕ بکەرەوە.', true);
+    return;
+  }
+  if (name === item.name && className === item.className) { $('student-dialog').close(); return; }
+  $('save-student-edit').disabled = true;
+  setBusy(true);
+  try {
+    // Keep the same student document ID; historical attendance is keyed by this ID.
+    await updateDoc(doc(state.db, 'schools', schoolId, 'students', id), { name, className });
+    item.name = name;
+    item.className = className;
+    state.students.sort((a, b) => a.name.localeCompare(b.name, 'ckb'));
+    $('student-dialog').close();
+    renderClasses();
+    render();
+    notify('زانیاریی قوتابی پاشەکەوت کرا؛ تۆمارە کۆنەکانی ئامادەبوون پارێزراون.');
+  } catch (error) {
+    notify(readableError(error), true);
+  } finally {
+    setBusy(false);
+    $('save-student-edit').disabled = false;
+  }
+}
+
+function csvCell(value) {
+  // Prevent spreadsheet formula execution if a name or class begins with =, +, -, @.
+  const clean = String(value).replace(/[\r\n\t]/g, ' ').trim();
+  const safe = /^[=+\-@]/.test(clean) ? "'" + clean : clean;
+  return '"' + safe.replace(/"/g, '""') + '"';
+}
+
+function downloadDailyReport() {
+  if (!state.user || state.busy) return;
+  const rows = [
+    ['ڕۆژ', 'ناوی قوتابی', 'پۆل', 'دۆخی ئامادەبوون'],
+    ...visibleStudents().map((item) => [
+      dateId(), item.name, item.className, statuses[state.attendance.get(item.id)] || 'دیاری نەکراوە'
+    ])
+  ];
+  const csv = '\uFEFF' + rows.map((row) => row.map(csvCell).join(',')).join('\r\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'daragat-report-' + dateId() + '.csv';
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 async function handleAuth(user) {
   state.user = null;
   state.role = '';
@@ -239,6 +322,7 @@ async function handleAuth(user) {
     state.user = user;
     state.role = role;
     $('student-entry').hidden = role !== 'admin';
+    $('manage-heading').hidden = role !== 'admin';
     $('user-summary').textContent = `${user.email || 'هەژمار'} • ${role === 'admin' ? 'بەڕێوەبەر' : 'مامۆستا'} • ${schoolId}`;
     show('dashboard');
     await loadDay();
@@ -254,6 +338,10 @@ function start() {
   $('student-form').addEventListener('submit', addStudent);
   $('work-date').addEventListener('change', loadDay);
   $('refresh').addEventListener('click', loadDay);
+  $('export-day').addEventListener('click', downloadDailyReport);
+  $('print-day').addEventListener('click', () => window.print());
+  $('student-edit-form').addEventListener('submit', saveStudentEdits);
+  $('cancel-student-edit').addEventListener('click', () => $('student-dialog').close());
   $('class-filter').addEventListener('change', render);
   $('student-search').addEventListener('input', render);
   $('logout').addEventListener('click', async () => { try { await signOut(state.auth); } catch (error) { notify(readableError(error), true); } });
