@@ -10,7 +10,8 @@
   var entries = [
     { id: 'attendance', label: 'تۆماری ئامادەبوونی ئۆنلاین', icon: '☁️', url: './online/' },
     { id: 'parent', label: 'پۆرتاڵی دایک‌وباوکان', icon: '👨‍👩‍👧', url: './online/parent.html' },
-    { id: 'display', label: 'شاشەی زیندووی قوتابخانە', icon: '📺', url: './online/display.html' }
+    { id: 'display', label: 'شاشەی زیندووی قوتابخانە', icon: '📺', url: './online/display.html' },
+    { id: 'sync', label: 'پاشەکەوتی هەموو بەشەکان لە Firebase', icon: '💾', url: './online/legacy-sync.html' }
   ];
   var popup = null;
   var frame = null;
