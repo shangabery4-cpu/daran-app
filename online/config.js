@@ -1,6 +1,16 @@
-// ڕێکخستنی گشتیی Firebase Web SDK. هیچ وشەی نهێنی، service-account یان private key لێرە دانەنێ.
-// ئەم بەشە بە ئەنقەست ناچالاکە تا پڕۆژەی Firebase ـی خۆت ڕێک دەخەیت.
-export const firebaseConfig = null;
+// ڕێکخستنی گشتیی Firebase Web SDK، وەرگیراو لە خاوەنی پڕۆژە.
+// ئەمانە Web App identifiers ـی گشتین؛ service-account، private key و password دانەنێ.
+// پێش بڵاوکردنەوەی فەرمی، Firebase Auth و Firestore Rules دەبێت تاقی بکرێنەوە.
+export const firebaseConfig = {
+  apiKey: "AIzaSyA_LIE8ndfS7OkQEuzRzD8OzagZMCH9EdE",
+  authDomain: "daragat-sorani.firebaseapp.com",
+  projectId: "daragat-sorani",
+  storageBucket: "daragat-sorani.firebasestorage.app",
+  messagingSenderId: "593358239902",
+  appId: "1:593358239902:web:8aa81b6ef0ae7f2358638f",
+  measurementId: "G-4190NXXM1S"
+};
 
-// ناوی ناسنامەی قوتابخانە لە Firestore ـدا، بۆ نموونە: "rona-school".
-export const schoolId = "";
+// ناسنامەی ناوخۆیی یەکەم قوتابخانە. ئەمە Project ID ـی Firebase نییە.
+// پێش تۆمارکردنی داتای ڕاستەقینە، دەتوانرێت بە خواستی خاوەن پڕۆژە بگۆڕدرێت.
+export const schoolId = "daragat-sorani";
