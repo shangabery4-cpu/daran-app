@@ -25,7 +25,9 @@ html,body{margin:0;min-height:100%;font-family:Tahoma,'Segoe UI',Arial,sans-seri
     // Keep the original ZIP application intact and add protected online modules inside its navigation.
     const bridgeTag = '<script defer src="./online/legacy-bridge.js"><\/script>';
     const authTag = bridgeTag.replace('legacy-bridge.js', 'auth-upgrade.js');
-    const unified = html.replace(/<\/body>\s*<\/html>\s*$/i, bridgeTag + '\n' + authTag + '\n</body>\n</html>');
+    const fontsTag = bridgeTag.replace('legacy-bridge.js', 'font-manager.js');
+    const socialTag = fontsTag.replace('font-manager.js', 'social-auth.js').replace('<script defer', '<script type="module"');
+    const unified = html.replace(/<\/body>\s*<\/html>\s*$/i, bridgeTag + '\n' + authTag + '\n' + fontsTag + '\n' + socialTag + '\n</body>\n</html>');
     if (unified === html) throw new Error('Unable to attach online navigation');
     document.open(); document.write(unified); document.close();
   }catch(e){
