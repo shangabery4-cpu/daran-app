@@ -49,3 +49,25 @@
  #class-management,#members-panel,#monthly-panel,.date-controls button{display:none!important}
  .date-controls input{border:0!important;padding:0!important}
 }
+
+/* Phase 3: academic calendar badge, protected display link and parent report. */
+.calendar-note{margin-bottom:22px;background:#effaf4;border-color:#cde9dd}
+.calendar-note .table-heading{margin-bottom:4px}
+.calendar-note h2{margin:0}
+.calendar-note .badge.bad{background:#ffe9df;color:#96502b}
+.display-link{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.display-link img{display:block;background:#fff;border:1px solid #d5e7df;border-radius:14px;padding:8px;flex-shrink:0}
+.display-link>div{flex:1;min-width:190px}
+.display-link p{margin:0 0 12px}
+#parent-report-panel h3{margin:18px 0 8px;font-size:18px}
+#parent-preview{margin-top:16px;border-top:1px solid #e1ede7}
+.parent-actions{margin-top:14px}
+@media(max-width:760px){.display-link{align-items:flex-start}.display-link img{width:116px;height:116px}.parent-actions button{width:100%}}
+@media print{
+ body:not(.print-parent) #parent-report-panel,body:not(.print-parent) #display-panel,body:not(.print-parent) #calendar-panel{display:none!important}
+ body.print-parent .topbar,body.print-parent .page-heading,body.print-parent .stats,body.print-parent #student-entry,body.print-parent #class-management,body.print-parent #members-panel,body.print-parent #monthly-panel,body.print-parent #display-panel,body.print-parent #calendar-panel,body.print-parent #dashboard>.panel:not(#parent-report-panel),body.print-parent #student-dialog,body.print-parent .message,body.print-parent footer{display:none!important}
+ body.print-parent #parent-report-panel{display:block!important;border:0;box-shadow:none;padding:0}
+ body.print-parent #parent-report-form,body.print-parent #parent-progress,body.print-parent .parent-actions{display:none!important}
+ body.print-parent #parent-preview{display:block!important;border:0}
+ body.print-parent #parent-report-panel .table-wrap{overflow:visible}
+}
