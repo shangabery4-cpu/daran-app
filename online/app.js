@@ -69,6 +69,7 @@ function setBusy(value) {
   $('today-button').disabled = value;
   $('class-rename-form').querySelectorAll('button,input,select').forEach((element) => { element.disabled = value; });
   $('student-form').querySelectorAll('button,input').forEach((element) => { element.disabled = value; });
+  $('calendar-form').querySelectorAll('button,input,textarea').forEach((element) => { element.disabled = value; });
 }
 
 async function login(event) {
@@ -219,7 +220,16 @@ function render() {
       edit.className = 'secondary edit-button';
       edit.textContent = 'دەستکاری / گواستنەوە';
       edit.addEventListener('click', () => editStudent(student));
-      manage.append(edit);
+      const copy = document.createElement('button');
+      copy.type = 'button';
+      copy.className = 'secondary edit-button';
+      copy.textContent = 'کۆپی ناسنامە';
+      copy.title = 'ناسنامەی قوتابی بۆ هەژماری دایک‌وباوک';
+      copy.addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(student.id); notify('ناسنامەی قوتابی کۆپی کرا.'); }
+        catch { window.prompt('ئەم ناسنامەیە کۆپی بکە:', student.id); }
+      });
+      manage.append(edit, copy);
       row.append(manage);
     }
     fragment.append(row);
@@ -442,7 +452,7 @@ async function loadMembers() {
       uid.className = 'uid-cell';
       uid.textContent = item.id;
       const role = document.createElement('td');
-      role.textContent = data.role === 'admin' ? 'بەڕێوەبەر' : data.role === 'staff' ? 'مامۆستا' : 'نەناسراو';
+      role.textContent = ({ admin: 'بەڕێوەبەر', staff: 'مامۆستا', viewer: 'تەنها بینەر', parent: 'دایک‌وباوک' })[data.role] || 'نەناسراو';
       const active = document.createElement('td');
       active.textContent = data.active === true ? 'چالاک' : 'ناچالاک';
       tr.append(uid, role, active);
@@ -582,8 +592,7 @@ function downloadMonthlyReport() {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// Academic schedule is read-only until an admin configures the school document
-// in Firebase Console. No browser-side settings writes or public access are added.
+// The calendar is editable by admins only; Firestore security rules enforce authorization.
 async function loadCalendar() {
   state.calendar = { termStart: '', termEnd: '', workingSaturdays: [], holidays: [] };
   try {
@@ -599,7 +608,53 @@ async function loadCalendar() {
   } catch {
     // The basic attendance flow remains usable when optional calendar settings are absent.
   }
+  if (state.role === 'admin') {
+    $('term-start').value = state.calendar.termStart;
+    $('term-end').value = state.calendar.termEnd;
+    $('working-saturdays').value = state.calendar.workingSaturdays.join('\n');
+    $('holiday-dates').value = state.calendar.holidays.join('\n');
+  }
   renderHolidayBadge();
+}
+
+function parseCalendarDates(value) {
+  const dates = value.split(/[\s,،;]+/).map((date) => date.trim()).filter(Boolean);
+  if (dates.length > 100 || dates.some((date) => !validIsoDate(date))) return null;
+  return [...new Set(dates)].sort();
+}
+
+function validIsoDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(year, month - 1, day, 12);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+}
+
+async function saveCalendar(event) {
+  event.preventDefault();
+  if (state.busy || state.role !== 'admin' || !state.user) return;
+  const termStart = $('term-start').value;
+  const termEnd = $('term-end').value;
+  const workingSaturdays = parseCalendarDates($('working-saturdays').value);
+  const holidays = parseCalendarDates($('holiday-dates').value);
+  if (!validIsoDate(termStart) || !validIsoDate(termEnd) || termStart > termEnd || !workingSaturdays || !holidays) {
+    notify('بەرواری ساڵی خوێندن یان لیستی پشووەکان دروست نییە (زۆرترین ١٠٠ بەروار بۆ هەر لیستێک).', true);
+    return;
+  }
+  if (workingSaturdays.some((date) => new Date(date + 'T12:00:00').getDay() !== 6)
+      || workingSaturdays.some((date) => date < termStart || date > termEnd)
+      || holidays.some((date) => date < termStart || date > termEnd)) {
+    notify('شەممەکانی دەوام دەبێت شەممە بن و هەموو بەروارەکان لەناو ساڵی خوێندندا بن.', true);
+    return;
+  }
+  setBusy(true);
+  try {
+    await setDoc(doc(state.db, 'schools', schoolId), { termStart, termEnd, workingSaturdays, holidays }, { merge: true });
+    state.calendar = { termStart, termEnd, workingSaturdays, holidays };
+    renderHolidayBadge();
+    notify('ڕێکخستنی ساڵی خوێندن لە سێرڤەر پاشەکەوت کرا.');
+  } catch (error) { notify(readableError(error), true); }
+  finally { setBusy(false); }
 }
 
 function renderHolidayBadge() {
@@ -614,7 +669,7 @@ function renderHolidayBadge() {
   marker.textContent = outside ? 'دەرەوەی ساڵی خوێندن' : off ? 'پشوو' : 'دەوام';
   marker.className = 'badge ' + (outside || off ? 'bad' : 'good');
   const term = c.termStart && c.termEnd ? ('ساڵی خوێندن: ' + c.termStart + ' تا ' + c.termEnd + '. ') : 'ساڵی خوێندن هێشتا بە شێوەی گشتی دیاری نەکراوە. ';
-  $('calendar-info').textContent = term + 'هەینی و شەممە بە بنەڕەت پشوون؛ بەرواری دەوامی شەممە و پشووە زیادەکان لە Firebase Console، دۆکیومێنتی schools/' + schoolId + ' دیاری دەکرێن. نیشانەی پشوو تۆمارکردن قەدەغە ناکات.';
+  $('calendar-info').textContent = term + 'هەینی و شەممە بە بنەڕەت پشوون؛ بەرواری دەوامی شەممە و پشووە زیادەکان لە بەشی ڕێکخستنی ساڵی خوێندن دیاری دەکرێن. نیشانەی پشوو تۆمارکردن قەدەغە ناکات.';
 }
 
 function weekDates(firstDay) {
@@ -732,6 +787,7 @@ async function handleAuth(user) {
     $('student-entry').hidden = role !== 'admin';
     $('class-management').hidden = role !== 'admin';
     $('members-panel').hidden = role !== 'admin';
+    $('calendar-settings').hidden = role !== 'admin';
     $('manage-heading').hidden = role !== 'admin';
     $('user-summary').textContent = `${user.email || 'هەژمار'} • ${role === 'admin' ? 'بەڕێوەبەر' : 'مامۆستا'} • ${schoolId}`;
     show('dashboard');
@@ -749,6 +805,7 @@ function start() {
   $('parent-week-start').value = localDate();
   $('login-form').addEventListener('submit', login);
   $('student-form').addEventListener('submit', addStudent);
+  $('calendar-form').addEventListener('submit', saveCalendar);
   $('work-date').addEventListener('change', () => loadDay());
   $('previous-day').addEventListener('click', () => changeDate(-1));
   $('next-day').addEventListener('click', () => changeDate(1));
