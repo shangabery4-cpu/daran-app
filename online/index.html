@@ -41,6 +41,10 @@
         <article><span>نائامادە</span><strong id="count-absent">٠</strong></article>
         <article><span>مۆڵەت‌پێدراو</span><strong id="count-excused">٠</strong></article>
       </div>
+      <section id="calendar-panel" class="notice calendar-note" aria-label="ڕۆژانی پشوو">
+        <div class="table-heading"><h2>ڕۆژانی دەوام و پشوو</h2><span id="holiday-badge" class="badge">دەوام</span></div>
+        <p id="calendar-info" class="hint compact-hint">هەینی و شەممە بە بنەڕەت پشوون. بەرواری ساڵی خوێندن لە ڕێکخستنەکانی قوتابخانە وەردەگیرێت ئەگەر دیاری کرابێت.</p>
+      </section>
       <section id="student-entry" class="panel" hidden>
         <h2>زیادکردنی قوتابی</h2>
         <form id="student-form" class="inline-form">
@@ -75,6 +79,25 @@
         </div>
         <p id="month-progress" class="hint" role="status">مانگ هەڵبژێرە و «دروستکردنی ڕاپۆرت» دابگرە. هەر مانگێک تا ٣١ داواکاری بۆ Firebase دەکات؛ ڕۆژە خوێندراوەکان لەم دانیشتنەدا دووبارە ناخوێنرێنەوە.</p>
         <div class="table-wrap"><table><thead><tr><th>ناوی قوتابی</th><th>پۆلی ئێستا</th><th>ئامادە</th><th>نائامادە</th><th>مۆڵەت‌پێدراو</th></tr></thead><tbody id="month-rows"><tr><td colspan="5" class="empty">هێشتا ڕاپۆرت دروست نەکراوە.</td></tr></tbody></table></div>
+      </section>
+      <section id="parent-report-panel" class="panel">
+        <div class="table-heading"><div><h2>ڕاپۆرتی تایبەتی قوتابی بۆ دایک‌وباوک</h2><p class="hint compact-hint">ڕاپۆرتەکە تەنها لە هەژماری ڕێگەپێدراو دروست دەکرێت؛ هیچ لینکێکی گشتیی داتای قوتابی دروست ناکات.</p></div></div>
+        <form id="parent-report-form" class="inline-form">
+          <div><label for="parent-student">قوتابی</label><select id="parent-student" required><option value="">قوتابی هەڵبژێرە</option></select></div>
+          <div><label for="parent-week-start">سەرەتای ٧ ڕۆژ</label><input id="parent-week-start" type="date" required></div>
+          <button id="build-parent-report" type="submit" class="primary">دروستکردنی ڕاپۆرت</button>
+        </form>
+        <p id="parent-progress" class="hint" role="status">بۆ هەر ڕاپۆرت تا ٧ ڕۆژ لە Firebase دەخوێنرێتەوە، تەنها دوای پشتڕاستکردنەوەی تۆ.</p>
+        <div id="parent-preview" hidden>
+          <h3 id="parent-report-heading"></h3>
+          <div class="table-wrap"><table class="short-table"><thead><tr><th>بەروار</th><th>دۆخ</th></tr></thead><tbody id="parent-report-rows"></tbody></table></div>
+          <p id="parent-report-total" class="hint"></p>
+          <div class="filters parent-actions"><button id="export-parent-report" type="button" class="secondary">داگرتنی CSV</button><button id="print-parent-report" type="button" class="secondary">چاپکردن</button></div>
+        </div>
+      </section>
+      <section id="display-panel" class="panel">
+        <div class="table-heading"><div><h2>شاشەی قوتابخانە</h2><p class="hint compact-hint">تەنها پیشاندان، بە چوونەژوورەوەی پارێزراو. هەژماری نەناسراو ناوی قوتابی نابینێت.</p></div><button id="open-display" type="button" class="primary">کردنەوەی شاشە</button></div>
+        <div class="display-link"><img src="./qr-display.svg" alt="QR ـی لینکی شاشەی پارێزراو" width="132" height="132"><div><p>QR ـەکە تەنها لینکی چوونەژوورەوەی شاشەیە؛ داتا لە ناوی QR ـەکەدا نییە.</p><button id="copy-display-link" type="button" class="secondary">کۆپیکردنی لینک</button><p class="hint compact-hint">شاشەکە سێ پۆل لە هەر جارێکدا پیشان دەدات، هەر ١٢ چرکە دەگۆڕێت و زانیارییەکان هەر ١٥ خولەک جارێک نوێ دەکاتەوە؛ گۆڕینی پەڕە خوێندنەوەی Firebase ناکات.</p></div></div>
       </section>
       <dialog id="student-dialog" class="student-dialog" aria-labelledby="student-dialog-title">
         <form id="student-edit-form">
