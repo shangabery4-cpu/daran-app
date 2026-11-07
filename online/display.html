@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ckb-IQ" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b7060">
+<title>دارەجات | شاشەی پارێزراوی قوتابخانە</title>
+<link rel="icon" href="../icon-192.png">
+<link rel="stylesheet" href="./display.css">
+</head>
+<body>
+<header class="kiosk-head">
+ <div class="identity"><span class="school-icon" aria-hidden="true">🏫</span><div><strong id="title">دارەجات — شاشەی قوتابخانە</strong><small id="subtitle">تەنها پیشاندان • چوونەژوورەوەی پارێزراو</small></div></div>
+ <div class="head-actions"><span id="status" class="pill">ئامادە دەکرێت…</span>
+ <label class="sr-only" for="language">زمان</label><select id="language" aria-label="زمان"><option value="ckb">کوردی</option><option value="en">English</option><option value="ar">العربية</option></select>
+ <button id="refresh" type="button" hidden>↻ نوێکردنەوە</button><button id="fullscreen" type="button" hidden>⛶ شاشەی پڕ</button><button id="signout" type="button" hidden>دەرچوون</button></div>
+</header>
+<main>
+ <section id="login" class="login-card" hidden>
+  <h1 id="login-title">چوونەژوورەوەی شاشەی پارێزراو</h1>
+  <p>ئەم لینکە هەژماری مۆڵەتپێدراوی قوتابخانە دەوێت؛ کەسانی بێ‌هەژمار زانیاریی قوتابی نابینن.</p>
+  <form id="login-form"><label for="email">ئیمەیڵ</label><input id="email" type="email" autocomplete="username" required>
+  <label for="password">وشەی نهێنی</label><input id="password" type="password" autocomplete="current-password" required minlength="6">
+  <button type="submit" id="login-submit">چوونەژوورەوە</button></form>
+ </section>
+ <section id="board" hidden>
+  <div class="board-meta"><div><h1 id="board-title">ئامادەبوونی قوتابیان</h1><p id="date-text"></p></div><div class="meta-tools"><span id="holiday" class="holiday"></span><span id="page-counter"></span><button id="previous" type="button">‹</button><button id="next" type="button">›</button></div></div>
+  <div id="cards" class="classes-grid" aria-live="polite"></div>
+  <p id="read-info" class="read-info">گۆڕینی پۆلەکان تەنها لەناو شاشەکەدا دەکرێت؛ داواکاری بۆ Firebase نەنێرێت.</p>
+ </section>
+ <p id="message" role="status" hidden></p>
+</main>
+<footer id="footer">دارەجات • تەنها پیشاندان • هیچ دەستکاریکردنێکی داتای قوتابی لەم پەڕەیەدا ناکرێت.</footer>
+<script type="module" src="./display.js"></script>
+</body>
+</html>
