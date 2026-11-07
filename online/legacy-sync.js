@@ -10,12 +10,33 @@ const num = (number) => String(number).replace(/\d/g, (digit) => numbers[Number(
 const state = { auth: null, db: null, user: null, busy: false, latest: new Map() };
 const rootPath = ['schools', schoolId, 'legacySnapshots'];
 
+// The original Daragat page patches Storage to transparently recover compressed
+// records and attachments from IndexedDB. An iframe has a different JS realm;
+// reading its own localStorage object would silently back up physical "dga:"
+// placeholders rather than the school's real data.
+const originalWindow = (() => {
+  try {
+    if (window.parent !== window && window.parent.location.origin === window.location.origin && window.parent.__dgStore) {
+      return window.parent;
+    }
+  } catch {}
+  return null;
+})();
+const schoolStorage = originalWindow?.localStorage || window.localStorage;
+
+async function prepareOriginalStore() {
+  if (!originalWindow?.__dgStore) throw new Error('open-original-menu');
+  await originalWindow.__dgStore.ready();
+  await originalWindow.__dgStore.flush();
+}
+
 function notice(message, error = false) {
   $('feedback').textContent = message;
   $('feedback').className = error ? 'error' : 'ok';
 }
 
 function errorText(error) {
+  if (error?.message === 'open-original-menu') return 'بۆ پاراستنی دروستی وێنە و بەڵگەکان، ئەم بەشە لە مێنیوی بەرنامەی ئەسڵی دارەجات بکەرەوە، نەک بە لینکێکی جیاواز.';
   if (error?.code === 'permission-denied') return 'Firestore Rules مۆڵەتی ئەم کارەت نادات. یاساکانی legacySnapshots لە Firebase Console بڵاو بکەرەوە و ڕۆڵەکەت بپشکنە.';
   if (error?.code?.startsWith('auth/')) return 'ئیمەیڵ، وشەی نهێنی یان پەیوەندیی Firebase ڕاست نییە.';
   if (error?.message === 'too-large') return 'یەکێک لە بەشەکان زۆر گەورەیە (زیاتر لە سنووری پاراستن). بڕی وێنە و بەڵگەکان کەم بکەرەوە.';
@@ -36,7 +57,7 @@ function step(current, total) {
 }
 
 function localSummary() {
-  const snapshot = collectLocal(localStorage);
+  const snapshot = collectLocal(schoolStorage);
   const keys = Object.keys(snapshot);
   $('local-count').textContent = num(keys.length);
   const bytes = Object.values(snapshot).reduce((sum, value) => sum + new TextEncoder().encode(value).length, 0);
@@ -100,6 +121,8 @@ async function uploadOne(key, raw) {
 
 async function push() {
   if (state.busy || !state.user) return;
+  try { await prepareOriginalStore(); }
+  catch (error) { return notice(errorText(error), true); }
   const data = localSummary();
   const keys = Object.keys(data);
   if (!keys.length) return notice('لە وێبگەڕەکەدا هێشتا هیچ تۆمارێکی دارەجات نییە.', true);
@@ -138,6 +161,7 @@ async function pull() {
   if (state.busy || !state.user) return;
   busy(true);
   try {
+    await prepareOriginalStore();
     const latest = await refreshCloud();
     if (!latest.size) return notice('هیچ پاشەکەوتێک لە Firebase نییە. سەرەتا لە ئامێری یەکەم بنێرە.', true);
     const fetched = {};
@@ -153,17 +177,18 @@ async function pull() {
       return notice('هێنانەوە هەڵوەشێنرایەوە. هیچ داتایەک نەگۆڕدرا.');
     }
     // Validate all remote data before changing a single local key.
-    const before = Object.fromEntries(keys.map((key) => [key, localStorage.getItem(key)]));
+    const before = Object.fromEntries(keys.map((key) => [key, schoolStorage.getItem(key)]));
     const changed = [];
     try {
-      for (const key of keys) { localStorage.setItem(key, fetched[key]); changed.push(key); }
+      for (const key of keys) { schoolStorage.setItem(key, fetched[key]); changed.push(key); }
     } catch (writeError) {
       // Best effort rollback if the browser's storage quota blocks a large payload.
       for (const key of changed) {
-        try { if (before[key] === null) localStorage.removeItem(key); else localStorage.setItem(key, before[key]); } catch {}
+        try { if (before[key] === null) schoolStorage.removeItem(key); else schoolStorage.setItem(key, before[key]); } catch {}
       }
       throw writeError;
     }
+    await originalWindow.__dgStore.flush();
     notice('هێنانەوە سەرکەوتوو بوو. دارەجات نوێ دەکرێتەوە…');
     try { window.top.location.reload(); } catch { window.location.reload(); }
   } catch (error) { notice(errorText(error), true); }
