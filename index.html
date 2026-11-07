@@ -24,7 +24,8 @@ html,body{margin:0;min-height:100%;font-family:Tahoma,'Segoe UI',Arial,sans-seri
     if(!html.startsWith('<!DOCTYPE html>') || !html.trimEnd().endsWith('</html>') || !html.includes('dg-sorani-local-account-portal')) throw new Error('Invalid package');
     // Keep the original ZIP application intact and add protected online modules inside its navigation.
     const bridgeTag = '<script defer src="./online/legacy-bridge.js"><\/script>';
-    const unified = html.replace(/<\/body>\s*<\/html>\s*$/i, bridgeTag + '\n</body>\n</html>');
+    const authTag = bridgeTag.replace('legacy-bridge.js', 'auth-upgrade.js');
+    const unified = html.replace(/<\/body>\s*<\/html>\s*$/i, bridgeTag + '\n' + authTag + '\n</body>\n</html>');
     if (unified === html) throw new Error('Unable to attach online navigation');
     document.open(); document.write(unified); document.close();
   }catch(e){
