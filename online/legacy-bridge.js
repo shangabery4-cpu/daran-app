@@ -39,6 +39,7 @@
     popup.hidden = false;
     document.body.classList.add('dg-unified-open');
     if (typeof window.closeGlobalNav === 'function') window.closeGlobalNav();
+    if (typeof window.closeDashboardSidebar === 'function') window.closeDashboardSidebar();
     popup.querySelector('.dg-unified-close').focus();
   }
 
@@ -99,35 +100,91 @@
     });
   }
 
-  function addNavigation() {
-    var drawer = document.querySelector('#globalNavDrawer .gnd-links');
-    if (!drawer || drawer.querySelector('[data-nav="dg-online-attendance"]')) return false;
+  function openModule(entryId, button) {
     buildPopup();
+    lastFocus = button;
+    setActive(entryId);
+  }
+
+  function addGlobalDrawerNavigation() {
+    var drawer = document.querySelector('#globalNavDrawer .gnd-links');
+    if (!drawer) return;
     var anchor = drawer.querySelector('[data-nav="attendance"]');
-    entries.forEach(function (entry, index) {
+    entries.forEach(function (entry) {
+      if (drawer.querySelector('[data-nav="dg-online-' + entry.id + '"]')) return;
       var button = create('button', 'dg-unified-action');
       button.type = 'button';
       button.dataset.nav = 'dg-online-' + entry.id;
-      var icon = create('span', '', entry.icon);
-      button.append(icon, document.createTextNode(entry.label));
-      button.addEventListener('click', function () {
-        lastFocus = button;
-        setActive(entry.id);
-      });
+      button.append(create('span', '', entry.icon), document.createTextNode(entry.label));
+      button.addEventListener('click', function () { openModule(entry.id, button); });
       if (anchor && anchor.parentNode) {
         anchor.insertAdjacentElement('afterend', button);
         anchor = button;
       } else drawer.append(button);
     });
-    return true;
+  }
+
+  // The original dashboard builds and replaces this sidebar using innerHTML.
+  // Insert navigation every time the sidebar is rebuilt, without duplicating it.
+  function addDashboardSidebarNavigation() {
+    var nav = document.querySelector('#dashboardSidebar .ds-nav');
+    if (!nav) return;
+    var anchor = Array.prototype.find.call(nav.querySelectorAll('button'), function (button) {
+      return (button.getAttribute('onclick') || '').indexOf('openBackupModule()') !== -1;
+    });
+    entries.forEach(function (entry) {
+      if (nav.querySelector('[data-dg-online="' + entry.id + '"]')) return;
+      var button = create('button', 'dg-unified-action dg-sidebar-online');
+      button.type = 'button';
+      button.dataset.dgOnline = entry.id;
+      button.append(create('span', 'dni', entry.icon), document.createTextNode(entry.label));
+      button.addEventListener('click', function () { openModule(entry.id, button); });
+      if (anchor && anchor.parentNode) {
+        anchor.insertAdjacentElement('afterend', button);
+        anchor = button;
+      } else nav.append(button);
+    });
+  }
+
+  // Also show the action on the visible 'Backup' page, immediately beside
+  // the local-file backup card. The legacy app rerenders this page on navigation.
+  function addBackupPageAction() {
+    var container = document.querySelector('#view-backup .nbbk');
+    if (!container || container.querySelector('.dg-cloud-backup-card')) return;
+    var card = create('section', 'nbbk-card dg-cloud-backup-card');
+    var heading = create('h3', '', '☁️ پاشەکەوتی هەموو بەشەکان لە Firebase');
+    var description = create('p', 'd',
+      'ناردنی تۆمارەکانی سیستەم بۆ Firebase و هێنانەوەیان لە ئامێری دیکە. پێش گەڕاندنەوە، پاشەکەوتی ناوخۆیی بگرە.');
+    var actions = create('div', 'nbbk-row');
+    var button = create('button', 'material-btn dg-cloud-backup-button',
+      '💾 کردنەوەی پاشەکەوتی Firebase');
+    button.type = 'button';
+    button.addEventListener('click', function () { openModule('sync', button); });
+    actions.append(button);
+    card.append(heading, description, actions);
+    container.insertBefore(card, container.children[1] || null);
+  }
+
+  function addNavigation() {
+    buildPopup();
+    addGlobalDrawerNavigation();
+    addDashboardSidebarNavigation();
+    addBackupPageAction();
   }
 
   function init() {
-    var tries = 0;
-    (function mount() {
-      if (addNavigation()) return;
-      if (++tries < 40) window.setTimeout(mount, 250);
-    })();
+    addNavigation();
+    var pending = false;
+    var watcher = new MutationObserver(function (records) {
+      if (!records.some(function (record) { return record.addedNodes.length > 0; })) return;
+      if (pending) return;
+      pending = true;
+      window.setTimeout(function () {
+        pending = false;
+        addNavigation();
+      }, 120);
+    });
+    watcher.observe(document.body, { childList: true, subtree: true });
   }
 
   var css = document.createElement('style');
@@ -135,6 +192,9 @@
     'body.dg-unified-open{overflow:hidden!important}',
     'body.auth-screen .dg-unified-action{display:none!important}',
     '.dg-unified-action{font-weight:700!important}',
+    '#dashboardSidebar .dg-sidebar-online{white-space:normal;line-height:1.55;text-align:right}',
+    '#view-backup .dg-cloud-backup-card{border-color:#b3dfce;background:linear-gradient(140deg,#f0fcf7,#fff)}',
+    '#view-backup .dg-cloud-backup-button{background:#087c66;color:#fff;min-height:44px}',
     '.dg-unified-shell{position:fixed!important;inset:0!important;z-index:2147483000!important;display:flex;flex-direction:column;background:#f2f8f5;color:#173d34;direction:rtl;font-family:inherit}',
     '.dg-unified-shell[hidden]{display:none!important}',
     '.dg-unified-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:10px 18px;background:var(--red-mid,#8a2543);color:white}',
