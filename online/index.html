@@ -63,9 +63,19 @@
         </form>
         <p class="hint">تەنها ناوی پۆل دەگۆڕێت؛ تۆمارەکانی ئامادەبوون دەپارێزرێن. بۆ پاراستنی داتا، گۆڕینی کۆمەڵەیی تەنها تا ٢٠ قوتابی لە جارێکدا ڕێگەپێدراوە؛ پێش گۆڕین پشتڕاستکردنەوە داوا دەکرێت.</p>
       </section>
+      <section id="calendar-settings" class="panel" hidden>
+        <div class="table-heading"><div><h2>ڕێکخستنی ساڵی خوێندن</h2><p class="hint compact-hint">تەنها بەڕێوەبەر دەتوانێت بگۆڕێت. بەروارەکان بە شێوازی YYYY-MM-DD پاشەکەوت دەبن.</p></div></div>
+        <form id="calendar-form" class="calendar-form">
+          <div><label for="term-start">دەستپێکی ساڵی خوێندن</label><input id="term-start" type="date" required></div>
+          <div><label for="term-end">کۆتایی ساڵی خوێندن</label><input id="term-end" type="date" required></div>
+          <div class="wide"><label for="working-saturdays">شەممەکانی دەوام (هەر بەروارێک لە دێڕێک)</label><textarea id="working-saturdays" rows="3" placeholder="2026-11-14"></textarea></div>
+          <div class="wide"><label for="holiday-dates">پشووە تایبەتەکان (هەر بەروارێک لە دێڕێک)</label><textarea id="holiday-dates" rows="3" placeholder="2026-12-25"></textarea></div>
+          <div class="wide"><button id="save-calendar" type="submit" class="primary">پاشەکەوتکردنی ساڵی خوێندن</button><p class="hint compact-hint">پێویستە یاسا نوێیەکانی Firestore پێشتر لە Firebase Console بڵاوکرابنەوە؛ ئەگەر نا، نووسین ڕەت دەکرێتەوە.</p></div>
+        </form>
+      </section>
       <section id="members-panel" class="panel" hidden>
         <div class="table-heading"><h2>هەژمار و دەسەڵاتەکان</h2><button id="load-members" class="secondary" type="button">پیشاندانی ئەندامەکان</button></div>
-        <p class="hint compact-hint">بەڕێوەبەر: بەڕێوەبردنی قوتابی و ئامادەبوون. مامۆستا: تۆمارکردنی ئامادەبوون و ڕاپۆرت. هەژماری نوێ و گۆڕینی ڕۆڵ تەنها لە Firebase Console یان سێرڤەری پارێزراو دەکرێت.</p>
+        <p class="hint compact-hint">بەڕێوەبەر: بەڕێوەبردن. مامۆستا: تۆمارکردنی ئامادەبوون. بینەر: تەنها خوێندنەوە. دایک‌وباوک: تەنها قوتابییە دیاریکراوەکانی خۆی. هەژماری نوێ و گۆڕینی ڕۆڵ تەنها لە Firebase Console یان سێرڤەری پارێزراو دەکرێت.</p>
         <div class="table-wrap"><table class="short-table"><thead><tr><th>UID ـی ئەندام</th><th>ڕۆڵ</th><th>دۆخ</th></tr></thead><tbody id="member-rows"><tr><td colspan="3" class="empty">بۆ بینین دوگمەکە دابگرە.</td></tr></tbody></table></div>
       </section>
       <section class="panel">
@@ -94,6 +104,10 @@
           <p id="parent-report-total" class="hint"></p>
           <div class="filters parent-actions"><button id="export-parent-report" type="button" class="secondary">داگرتنی CSV</button><button id="print-parent-report" type="button" class="secondary">چاپکردن</button></div>
         </div>
+      </section>
+      <section id="parent-access-panel" class="panel">
+        <div class="table-heading"><div><h2>پۆرتاڵی تایبەتی دایک‌وباوکان</h2><p class="hint compact-hint">هەر دایک و باوکێک بە هەژماری <code>parent</code> دەچێتە ژوورەوە و تەنها تۆمارەکانی منداڵە دیاریکراوەکانی خۆی دەبینێت.</p></div><a href="./parent.html" class="link-button">کردنەوەی پۆرتاڵ</a></div>
+        <p class="hint">بەڕێوەبەر هەژمار لە Firebase Authentication و <code>studentIds</code> لە Firestore Console زیاد دەکات. ناسنامەی قوتابی لە ستوونی «بەڕێوەبردن» کۆپی بکە.</p>
       </section>
       <section id="display-panel" class="panel">
         <div class="table-heading"><div><h2>شاشەی قوتابخانە</h2><p class="hint compact-hint">تەنها پیشاندان، بە چوونەژوورەوەی پارێزراو. هەژماری نەناسراو ناوی قوتابی نابینێت.</p></div><button id="open-display" type="button" class="primary">کردنەوەی شاشە</button></div>
