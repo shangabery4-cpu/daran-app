@@ -183,7 +183,9 @@ async function buildReport(event) {
   finally { busy(false); }
 }
 function start() {
-  $('week-start').value = today();
+  const prior = new Date(); prior.setDate(prior.getDate() - 6);
+  const pad = (n) => String(n).padStart(2, '0');
+  $('week-start').value = prior.getFullYear() + '-' + pad(prior.getMonth() + 1) + '-' + pad(prior.getDate());
   $('report-month').value = today().slice(0,7);
   $('login-form').addEventListener('submit',login);
   $('report-form').addEventListener('submit',buildReport);
