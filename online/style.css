@@ -21,3 +21,31 @@
  th,td{border-bottom:1px solid #bbb;padding:8px;font-size:12px}
  .status-select{border:0;appearance:none;padding:0;color:#111;background:transparent}
 }
+
+/* Phase 2: history navigation, monthly summary, class and role panels. */
+.date-field{min-width:min(100%,365px)}
+.date-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.date-controls input{min-width:155px;flex:1}
+.date-controls .secondary{padding:10px 13px;min-height:45px}
+.compact-hint{margin:0;line-height:1.6}
+.class-cards{display:flex;flex-wrap:wrap;gap:10px;margin:15px 0 20px}
+.class-card{background:#e8f5ef;border:1px solid #c6e5d9;color:#0b6753;border-radius:12px;padding:12px 16px;font-weight:700;min-height:45px}
+.class-card:hover{background:#d7eee5}
+.short-table{min-width:450px}
+.uid-cell{font-family:monospace;direction:ltr;text-align:left;overflow-wrap:anywhere}
+.month-controls input[type=month]{min-width:175px}
+#month-progress{margin:0 0 12px}
+#monthly-panel h2{margin-bottom:5px}
+@media(max-width:760px){
+ .date-field{width:100%}
+ .date-controls{width:100%}
+ .date-controls input{flex:1 1 130px;min-width:130px}
+ .month-controls{width:100%}
+ .month-controls input[type=month]{width:100%}
+ .month-controls button{flex:1 1 calc(50% - 8px)}
+ .short-table{min-width:450px}
+}
+@media print{
+ #class-management,#members-panel,#monthly-panel,.date-controls button{display:none!important}
+ .date-controls input{border:0!important;padding:0!important}
+}

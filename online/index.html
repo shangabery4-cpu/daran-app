@@ -34,7 +34,7 @@
     </section>
 
     <section id="dashboard" hidden>
-      <div class="page-heading"><div><h1>داشبۆردی قوتابخانە</h1><p id="user-summary">—</p></div><div class="field"><label for="work-date">ڕۆژ</label><input id="work-date" type="date"></div></div>
+      <div class="page-heading"><div><h1>داشبۆردی قوتابخانە</h1><p id="user-summary">—</p></div><div class="field date-field"><label for="work-date">مێژووی ئامادەبوون</label><div class="date-controls"><button id="previous-day" class="secondary" type="button" title="ڕۆژی پێشوو">‹</button><input id="work-date" type="date"><button id="next-day" class="secondary" type="button" title="ڕۆژی داهاتوو">›</button><button id="today-button" class="secondary" type="button">ئەمڕۆ</button></div></div></div>
       <div class="stats" aria-label="کورتەی ئامادەبوون">
         <article><span>کۆی قوتابی</span><strong id="count-total">٠</strong></article>
         <article><span>ئامادە</span><strong id="count-present">٠</strong></article>
@@ -49,10 +49,32 @@
           <button class="primary" type="submit">زیادکردن</button>
         </form>
       </section>
+      <section id="class-management" class="panel" hidden>
+        <div class="table-heading"><h2>بەڕێوەبردنی پۆلەکان</h2><span class="hint compact-hint">پۆلەکان لە لیستی قوتابییەکان وەردەگیرێن.</span></div>
+        <div id="class-cards" class="class-cards"></div>
+        <form id="class-rename-form" class="inline-form">
+          <div><label for="class-rename-from">پۆلی ئێستا</label><select id="class-rename-from" required><option value="">پۆل هەڵبژێرە</option></select></div>
+          <div><label for="class-rename-to">ناوی نوێی پۆل</label><input id="class-rename-to" type="text" maxlength="40" required placeholder="بۆ نموونە ٧-ب"></div>
+          <button class="secondary" type="submit">گۆڕینی ناوی پۆل</button>
+        </form>
+        <p class="hint">تەنها ناوی پۆل دەگۆڕێت؛ تۆمارەکانی ئامادەبوون دەپارێزرێن. بۆ پاراستنی داتا، گۆڕینی کۆمەڵەیی تەنها تا ٢٠ قوتابی لە جارێکدا ڕێگەپێدراوە؛ پێش گۆڕین پشتڕاستکردنەوە داوا دەکرێت.</p>
+      </section>
+      <section id="members-panel" class="panel" hidden>
+        <div class="table-heading"><h2>هەژمار و دەسەڵاتەکان</h2><button id="load-members" class="secondary" type="button">پیشاندانی ئەندامەکان</button></div>
+        <p class="hint compact-hint">بەڕێوەبەر: بەڕێوەبردنی قوتابی و ئامادەبوون. مامۆستا: تۆمارکردنی ئامادەبوون و ڕاپۆرت. هەژماری نوێ و گۆڕینی ڕۆڵ تەنها لە Firebase Console یان سێرڤەری پارێزراو دەکرێت.</p>
+        <div class="table-wrap"><table class="short-table"><thead><tr><th>UID ـی ئەندام</th><th>ڕۆڵ</th><th>دۆخ</th></tr></thead><tbody id="member-rows"><tr><td colspan="3" class="empty">بۆ بینین دوگمەکە دابگرە.</td></tr></tbody></table></div>
+      </section>
       <section class="panel">
         <div class="table-heading"><h2>تۆماری ڕۆژانە</h2><div class="filters"><button id="refresh" type="button" class="secondary">نوێکردنەوە</button><button id="export-day" type="button" class="secondary">داگرتنی ڕاپۆرت CSV</button><button id="print-day" type="button" class="secondary">چاپی ڕۆژانە</button><label class="sr-only" for="class-filter">پۆل</label><select id="class-filter"><option value="">هەموو پۆلەکان</option></select><label class="sr-only" for="student-search">گەڕان</label><input id="student-search" type="search" placeholder="گەڕان بە ناوی قوتابی…"></div></div>
         <div class="table-wrap"><table><thead><tr><th>ناوی قوتابی</th><th>پۆل</th><th>دۆخی ڕۆژ</th><th>پاشەکەوتکردن</th><th id="manage-heading" hidden>بەڕێوەبردن</th></tr></thead><tbody id="student-rows"><tr><td colspan="4" class="empty">زانیاری بار دەکرێت…</td></tr></tbody></table></div>
         <p class="hint">گۆڕانکاری تەنها کاتێک پاشەکەوت دەبێت کە سێرڤەر وەڵامی سەرکەوتوو بدات. ڕاپۆرتی CSV بەپێی پۆل و گەڕانی هەڵبژێردراوە.</p>
+      </section>
+      <section id="monthly-panel" class="panel">
+        <div class="table-heading"><div><h2>ڕاپۆرتی مانگانە</h2><p class="hint compact-hint">بەپێی قوتابی و پۆلی ئێستا؛ تەنها تا ئەمڕۆ و دۆخە پاشەکەوتکراوەکان دەژمێرێت.</p></div>
+          <div class="filters month-controls"><label class="sr-only" for="report-month">مانگ</label><input id="report-month" type="month"><button id="build-month" class="primary" type="button">دروستکردنی ڕاپۆرت</button><button id="export-month" class="secondary" type="button" disabled>داگرتنی CSV</button></div>
+        </div>
+        <p id="month-progress" class="hint" role="status">مانگ هەڵبژێرە و «دروستکردنی ڕاپۆرت» دابگرە. هەر مانگێک تا ٣١ داواکاری بۆ Firebase دەکات؛ ڕۆژە خوێندراوەکان لەم دانیشتنەدا دووبارە ناخوێنرێنەوە.</p>
+        <div class="table-wrap"><table><thead><tr><th>ناوی قوتابی</th><th>پۆلی ئێستا</th><th>ئامادە</th><th>نائامادە</th><th>مۆڵەت‌پێدراو</th></tr></thead><tbody id="month-rows"><tr><td colspan="5" class="empty">هێشتا ڕاپۆرت دروست نەکراوە.</td></tr></tbody></table></div>
       </section>
       <dialog id="student-dialog" class="student-dialog" aria-labelledby="student-dialog-title">
         <form id="student-edit-form">
