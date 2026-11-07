@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ckb-IQ" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b7060">
+<title>دارەجات | پۆرتاڵی دایک‌وباوکان</title>
+<link rel="icon" href="../icon-192.png">
+<link rel="stylesheet" href="./parent.css">
+</head>
+<body>
+<header class="topbar"><div class="brand"><span aria-hidden="true">🏫</span><div><strong>دارەجات</strong><small>پۆرتاڵی تایبەتی دایک‌وباوکان</small></div></div><div class="account"><span id="connection" class="badge">چوونەژوورەوە پێویستە</span><button id="logout" class="ghost" type="button" hidden>دەرچوون</button></div></header>
+<main>
+<section id="setup" class="card" hidden><h1>ڕێکخستنی Firebase تەواو نییە</h1><p>تکایە لەگەڵ بەڕێوەبەری قوتابخانە پەیوەندی بکە.</p></section>
+<section id="login-panel" class="card auth">
+<div class="lead"><span class="lock" aria-hidden="true">🔐</span><h1>بەخێربێیت بۆ ڕاپۆرتی منداڵەکەت</h1><p>بە هەژماری تایبەتی دایک‌وباوک بچۆ ژوورەوە. هیچ زانیارییەکی قوتابی بە شێوەی گشتی پیشان نادرێت.</p></div>
+<form id="login-form"><label for="email">ئیمەیڵ</label><input id="email" type="email" autocomplete="username" required placeholder="name@example.com"><label for="password">وشەی نهێنی</label><input id="password" type="password" autocomplete="current-password" minlength="6" required><button class="primary" type="submit">چوونەژوورەوە</button></form>
+</section>
+<section id="portal" hidden>
+<div class="heading"><div><h1>ڕاپۆرتی ئامادەبوون</h1><p id="user-summary"></p></div><span class="private-badge">تایبەتی • تەنها خوێندنەوە</span></div>
+<section class="card"><h2>هەڵبژاردنی قوتابی و ماوە</h2><form id="report-form" class="form-grid">
+<div><label for="student-select">قوتابی</label><select id="student-select" required></select></div>
+<div><label for="report-mode">جۆری ڕاپۆرت</label><select id="report-mode"><option value="week">٧ ڕۆژ</option><option value="month">مانگانە</option></select></div>
+<div id="week-field"><label for="week-start">سەرەتای ٧ ڕۆژ</label><input id="week-start" type="date" required></div>
+<div id="month-field" hidden><label for="report-month">مانگ</label><input id="report-month" type="month"></div>
+<div class="submit"><button id="build-report" class="primary" type="submit">پیشاندانی ڕاپۆرت</button></div>
+</form>
+<p class="hint">ڕاپۆرت تەنها بە داواکاری تۆ لە Firebase دەخوێنرێتەوە؛ بۆ هەر قوتابی تا ٣١ ڕۆژ دەخوێنرێت. ڕۆژە خوێندراوەکان لەم دانیشتنەدا دووبارە ناکرێنەوە.</p></section>
+<section class="card" id="report-preview" hidden>
+<div class="heading report-head"><div><h2 id="report-title">ڕاپۆرت</h2><p id="report-subtitle"></p></div><div class="actions"><button id="download-csv" type="button" class="ghost">داگرتنی CSV</button><button id="print-report" type="button" class="ghost">چاپکردن</button></div></div>
+<div class="stats"><div><span>ئامادە</span><strong id="count-present">٠</strong></div><div><span>نائامادە</span><strong id="count-absent">٠</strong></div><div><span>مۆڵەت‌پێدراو</span><strong id="count-excused">٠</strong></div></div>
+<div class="table-wrap"><table><thead><tr><th>بەروار</th><th>دۆخ</th></tr></thead><tbody id="report-rows"></tbody></table></div>
+</section>
+</section>
+<p id="notice" role="status" aria-live="polite" hidden></p>
+</main>
+<footer>پارێزگاری لە داتای منداڵان گرنگە. هەژمارەکەت لە کەسێکی تر مەدەرەوە.</footer>
+<script type="module" src="./parent.js"></script>
+</body>
+</html>

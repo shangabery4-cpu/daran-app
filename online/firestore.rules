@@ -9,19 +9,43 @@ service cloud.firestore {
       return /databases/$(database)/documents/schools/$(schoolId)/members/$(request.auth.uid);
     }
 
+    function isActiveMember(schoolId) {
+      return signedIn() && exists(memberPath(schoolId))
+        && get(memberPath(schoolId)).data.active == true;
+    }
+
+    function hasRole(schoolId, roles) {
+      return isActiveMember(schoolId)
+        && get(memberPath(schoolId)).data.role in roles;
+    }
+
     function isMember(schoolId) {
-      return signedIn()
-        && exists(memberPath(schoolId))
-        && get(memberPath(schoolId)).data.active == true
-        && get(memberPath(schoolId)).data.role in ['admin', 'staff'];
+      return hasRole(schoolId, ['admin', 'staff', 'viewer']);
     }
 
     function isAdmin(schoolId) {
-      return isMember(schoolId) && get(memberPath(schoolId)).data.role == 'admin';
+      return hasRole(schoolId, ['admin']);
     }
 
     function isWriter(schoolId) {
-      return isMember(schoolId);
+      return hasRole(schoolId, ['admin', 'staff']);
+    }
+
+    function isParentOf(schoolId, studentId) {
+      return hasRole(schoolId, ['parent'])
+        && get(memberPath(schoolId)).data.get('studentIds', []) is list
+        && studentId in get(memberPath(schoolId)).data.get('studentIds', []);
+    }
+
+    function validCalendar(data) {
+      return data.get('termStart', '') is string
+        && data.get('termEnd', '') is string
+        && data.get('termStart', '').size() <= 10
+        && data.get('termEnd', '').size() <= 10
+        && data.get('workingSaturdays', []) is list
+        && data.get('workingSaturdays', []).size() <= 100
+        && data.get('holidays', []) is list
+        && data.get('holidays', []).size() <= 100;
     }
 
     function validStudent() {
@@ -46,7 +70,14 @@ service cloud.firestore {
 
     match /schools/{schoolId} {
       allow get: if isMember(schoolId);
-      allow list, create, update, delete: if false;
+      allow list, delete: if false;
+      allow create: if isAdmin(schoolId)
+        && request.resource.data.keys().hasOnly(['termStart', 'termEnd', 'workingSaturdays', 'holidays'])
+        && validCalendar(request.resource.data);
+      allow update: if isAdmin(schoolId)
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['termStart', 'termEnd', 'workingSaturdays', 'holidays'])
+        && validCalendar(request.resource.data);
 
       match /members/{uid} {
         // A user can read their membership but cannot grant themselves admin rights.
@@ -56,7 +87,8 @@ service cloud.firestore {
       }
 
       match /students/{studentId} {
-        allow read: if isMember(schoolId);
+        allow get: if isMember(schoolId) || isParentOf(schoolId, studentId);
+        allow list: if isMember(schoolId);
         allow create: if isAdmin(schoolId)
           && validStudent()
           && request.resource.data.createdAt == request.time;
@@ -67,8 +99,10 @@ service cloud.firestore {
       }
 
       match /days/{dateId}/attendance/{studentId} {
-        allow read: if isMember(schoolId)
-          && dateId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+        allow get: if dateId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && (isMember(schoolId) || isParentOf(schoolId, studentId));
+        allow list: if dateId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && isMember(schoolId);
         allow create, update: if isWriter(schoolId)
           && dateId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
           && exists(/databases/$(database)/documents/schools/$(schoolId)/students/$(studentId))
