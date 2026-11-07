@@ -148,7 +148,7 @@ async function handleUser(user) {
   if(!user){showBoard(false);status('چوونەژوورەوە پێویستە');return;}
   try{
     const member=await getDoc(doc(state.db,'schools',schoolId,'members',user.uid));
-    if(!member.exists()||member.data().active!==true||!['admin','staff'].includes(member.data().role))throw new Error('not-member');
+    if(!member.exists()||member.data().active!==true||!['admin','staff','viewer'].includes(member.data().role))throw new Error('not-member');
     state.user=user;
     await readSchoolCalendar();
     showBoard(true);
