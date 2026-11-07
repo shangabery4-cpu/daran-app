@@ -9,7 +9,7 @@
 - پاشەکەوتی سەحابیی لیستی قوتابی و دۆخی ڕۆژانە (ئامادە/نائامادە/مۆڵەت‌پێدراو).
 - کەمکردنەوەی نووسینی دووبارە: دۆخی هەمان قوتابی دووبارە نانێردرێت، تەنها دوای پشتڕاستکردنەوەی سێرڤەر نیشانی سەرکەوتن دەدرێت.
 - ڕووکاری RTL و ژمارەی کوردی. هەموو دەقەکانی ئەم فۆڵدەرە بۆ بەکارهێنەر بە سۆرانی نووسراون.
-- تا Firebase ـی خۆت ڕێک نەخەیت، سیستەم ناچالاک دەمێنێت. هیچ داتای قوتابی لە ئەم وەشانەی ئێستا خۆکارانە بڵاو ناکرێتەوە.
+- ڕێکخستنی گشتیی Web App ـی Firebase لە `online/config.js` دانراوە، بەڵام چوونەژوورەوە، ئەندامێتی و یاساکانی بنکەدراوە هێشتا دەبێت تاقی بکرێنەوە. هیچ داتای ڕاستەقینەی قوتابی تێدا مەنووسە تا ئەو تاقیکردنەوانە تەواو نەبن.
 
 **گرنگ:** ئەمە وەشانی تەواوی Daragat نییە. بەشەکانی نمرە/تاقیکردنەوە، ڕاپۆرت، هەژماری دایک‌وباوک، مۆڵەتی پیشاندانی گشتی، کاری ئۆفلاین، پاشەکەوتی وێنەکان و هێنانی داتای کۆن هێشتا زیاد نەکراون. پێش بەکارهێنانی ڕاستەقینە، یاساکان لە Firebase Emulator تاقی بکرێنەوە و پشکنینی ئەمنی بکرێت.
 
@@ -18,8 +18,8 @@
 1. پڕۆژەیەکی نوێ لە [Firebase Console](https://console.firebase.google.com/) دروست بکە.
 2. `Authentication → Sign-in method → Email/Password` چالاک بکە. هەژماری بەڕێوەبەر لە `Authentication → Users` دروست بکە.
 3. `Firestore Database` دروست بکە بە **production mode**. یاساکانی `online/firestore.rules` بخوێنەوە، لە Emulator تاقیان بکەرەوە و پاشان لە `Firestore → Rules` بڵاویان بکەرەوە. بە هەرگیز `allow read, write: if true` بەکارمەهێنە.
-4. لە Firestore ـدا لە ڕێگەی Console ـەوە ئەم پەڕەیە دروست بکە: `schools/rona-school/members/USER_UID`، لەگەڵ خانەکانی `role: "admin"` و `active: true`. `USER_UID` لە Firebase Authentication وەرگرە؛ ناوی قوتابخانە دەتوانێت جیاواز بێت.
-5. لە ڕێکخستنەکانی پڕۆژەی Firebase → Web app، ڕێکخستنی **گشتی** `firebaseConfig` وەرگرە و بە فۆرماتی object لە `online/config.js` دایبنێ؛ `schoolId` بکە `"rona-school"` یان ئەو ناسنامەیەی دروستت کردووە. تەنها public web config بەکاربهێنە؛ **service-account، private key، پاسوۆرد، OTP یان توکنی بەڕێوەبەر لە GitHub مەخەرەوە**.
+4. لە Firestore ـدا لە ڕێگەی Console ـەوە ئەم پەڕەیە دروست بکە: `schools/daragat-sorani/members/USER_UID`، لەگەڵ خانەکانی `role: "admin"` و `active: true`. `USER_UID` لە Firebase Authentication وەرگرە؛ پێش تۆمارکردنی داتای ڕاستەقینە، `schoolId` دەتوانرێت بگۆڕدرێت.
+5. ڕێکخستنە گشتییەکانی Web App ـی پڕۆژەی `daragat-sorani` لە `online/config.js` دانراون. `service-account`، `private key`، پاسوۆرد، OTP یان توکنی بەڕێوەبەر لە GitHub مەخەرەوە.
 6. لە Firebase Authentication → Settings → Authorized domains، دۆمەینی `shangabery4-cpu.github.io` زیاد بکە، ئەگەر پێویست بوو.
 7. دوای پشکنین و merge کردنی PR بۆ `main`، پەڕەی `https://shangabery4-cpu.github.io/daran-app/online/` بکەرەوە (بە مەرجێک GitHub Pages چالاک بێت).
 
