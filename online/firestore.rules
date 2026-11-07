@@ -68,6 +68,414 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time;
     }
 
+
+    // Only known school-data module keys. No auth/session/license/profile secrets.
+    function allowedLegacyKey(key) {
+      return key in [
+        'schoolResultsApp_v1',
+        'schoolResultsGradebook_v1',
+        'schoolResultsLevels_v1',
+        'schoolResultsAttendance_v1',
+        'schoolResultsStaff_v1',
+        'schoolResultsStaffAtt_v1',
+        'schoolResultsExams_v1',
+        'schoolResultsProperties_v1',
+        'schoolResultsCare_v1',
+        'schoolResultsRecords_v1',
+        'schoolResultsNotes_v1',
+        'schoolResultsAccounts_v1',
+        'schoolResultsHomework_v1',
+        'schoolResultsMail_v1',
+        'schoolResultsNotif_v1',
+        'schoolResultsSchoolLogs_v1',
+        'schoolResultsTimetable_v1',
+        'schoolResultsExemptions_v1',
+        'schoolResultsSchoolOrders_v1',
+        'school_attendance_warnings_v1'
+      ];
+    }
+
+    function validLegacyManifest() {
+      return request.resource.data.keys().hasOnly([
+          'version', 'chunks', 'encoding', 'sha256',
+          'byteLength', 'updatedAt', 'updatedBy'
+        ])
+        && request.resource.data.keys().hasAll([
+          'version', 'chunks', 'encoding', 'sha256',
+          'byteLength', 'updatedAt', 'updatedBy'
+        ])
+        && request.resource.data.version is string
+        && request.resource.data.version.matches('^[0-9a-f-]{36}
+      allow get: if isMember(schoolId);
+      allow list, delete: if false;
+      allow create: if isAdmin(schoolId)
+        && request.resource.data.keys().hasOnly(['termStart', 'termEnd', 'workingSaturdays', 'holidays'])
+        && validCalendar(request.resource.data);
+      allow update: if isAdmin(schoolId)
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['termStart', 'termEnd', 'workingSaturdays', 'holidays'])
+        && validCalendar(request.resource.data);
+
+      match /members/{uid} {
+        // A user can read their membership but cannot grant themselves admin rights.
+        allow get: if signedIn() && (request.auth.uid == uid || isAdmin(schoolId));
+        allow list: if isAdmin(schoolId);
+        allow create, update, delete: if false;
+      }
+
+      match /students/{studentId} {
+        allow get: if isMember(schoolId) || isParentOf(schoolId, studentId);
+        allow list: if isMember(schoolId);
+        allow create: if isAdmin(schoolId)
+          && validStudent()
+          && request.resource.data.createdAt == request.time;
+        allow update: if isAdmin(schoolId)
+          && validStudent()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'className', 'active']);
+        allow delete: if false;
+      }
+
+      match /days/{dateId}/attendance/{studentId} {
+        allow get: if dateId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && (isMember(schoolId) || isParentOf(schoolId, studentId));
+        allow list: if dateId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && isMember(schoolId);
+        allow create, update: if isWriter(schoolId)
+          && dateId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && exists(/databases/$(database)/documents/schools/$(schoolId)/students/$(studentId))
+          && validAttendance();
+        allow delete: if false;
+      }
+      // Legacy Daragat full-module snapshots: administrator-only, never public.
+      match /legacySnapshots/{storageKey} {
+        allow get, list: if isAdmin(schoolId);
+        allow create, update: if isAdmin(schoolId)
+          && allowedLegacyKey(storageKey)
+          && validLegacyManifest();
+        allow delete: if false;
+
+        match /versions/{version}/chunks/{chunkId} {
+          allow get, list: if isAdmin(schoolId)
+            && allowedLegacyKey(storageKey);
+          allow create: if isAdmin(schoolId)
+            && allowedLegacyKey(storageKey)
+            && version.matches('^[0-9a-f-]{36}, including account/license paths, are denied.
+  }
+}
+)
+        && request.resource.data.chunks is int
+        && request.resource.data.chunks >= 1
+        && request.resource.data.chunks <= 200
+        && request.resource.data.encoding in ['gzip-b64', 'utf8-b64']
+        && request.resource.data.sha256 is string
+        && request.resource.data.sha256.matches('^[0-9a-f]{64}
+      allow get: if isMember(schoolId);
+      allow list, delete: if false;
+      allow create: if isAdmin(schoolId)
+        && request.resource.data.keys().hasOnly(['termStart', 'termEnd', 'workingSaturdays', 'holidays'])
+        && validCalendar(request.resource.data);
+      allow update: if isAdmin(schoolId)
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['termStart', 'termEnd', 'workingSaturdays', 'holidays'])
+        && validCalendar(request.resource.data);
+
+      match /members/{uid} {
+        // A user can read their membership but cannot grant themselves admin rights.
+        allow get: if signedIn() && (request.auth.uid == uid || isAdmin(schoolId));
+        allow list: if isAdmin(schoolId);
+        allow create, update, delete: if false;
+      }
+
+      match /students/{studentId} {
+        allow get: if isMember(schoolId) || isParentOf(schoolId, studentId);
+        allow list: if isMember(schoolId);
+        allow create: if isAdmin(schoolId)
+          && validStudent()
+          && request.resource.data.createdAt == request.time;
+        allow update: if isAdmin(schoolId)
+          && validStudent()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'className', 'active']);
+        allow delete: if false;
+      }
+
+      match /days/{dateId}/attendance/{studentId} {
+        allow get: if dateId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && (isMember(schoolId) || isParentOf(schoolId, studentId));
+        allow list: if dateId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && isMember(schoolId);
+        allow create, update: if isWriter(schoolId)
+          && dateId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && exists(/databases/$(database)/documents/schools/$(schoolId)/students/$(studentId))
+          && validAttendance();
+        allow delete: if false;
+      }
+    }
+
+    // All unspecified collections, including account/license paths, are denied.
+  }
+}
+)
+        && request.resource.data.byteLength is int
+        && request.resource.data.byteLength >= 0
+        && request.resource.data.byteLength <= 18000000
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validLegacyChunk() {
+      return request.resource.data.keys().hasOnly(['data', 'createdAt', 'createdBy'])
+        && request.resource.data.keys().hasAll(['data', 'createdAt', 'createdBy'])
+        && request.resource.data.data is string
+        && request.resource.data.data.size() <= 120000
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.createdBy == request.auth.uid;
+    }
+
+    match /schools/{schoolId} {
+      allow get: if isMember(schoolId);
+      allow list, delete: if false;
+      allow create: if isAdmin(schoolId)
+        && request.resource.data.keys().hasOnly(['termStart', 'termEnd', 'workingSaturdays', 'holidays'])
+        && validCalendar(request.resource.data);
+      allow update: if isAdmin(schoolId)
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['termStart', 'termEnd', 'workingSaturdays', 'holidays'])
+        && validCalendar(request.resource.data);
+
+      match /members/{uid} {
+        // A user can read their membership but cannot grant themselves admin rights.
+        allow get: if signedIn() && (request.auth.uid == uid || isAdmin(schoolId));
+        allow list: if isAdmin(schoolId);
+        allow create, update, delete: if false;
+      }
+
+      match /students/{studentId} {
+        allow get: if isMember(schoolId) || isParentOf(schoolId, studentId);
+        allow list: if isMember(schoolId);
+        allow create: if isAdmin(schoolId)
+          && validStudent()
+          && request.resource.data.createdAt == request.time;
+        allow update: if isAdmin(schoolId)
+          && validStudent()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'className', 'active']);
+        allow delete: if false;
+      }
+
+      match /days/{dateId}/attendance/{studentId} {
+        allow get: if dateId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && (isMember(schoolId) || isParentOf(schoolId, studentId));
+        allow list: if dateId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && isMember(schoolId);
+        allow create, update: if isWriter(schoolId)
+          && dateId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && exists(/databases/$(database)/documents/schools/$(schoolId)/students/$(studentId))
+          && validAttendance();
+        allow delete: if false;
+      }
+    }
+
+    // All unspecified collections, including account/license paths, are denied.
+  }
+}
+)
+            && chunkId.matches('^[0-9]{4}, including account/license paths, are denied.
+  }
+}
+)
+        && request.resource.data.chunks is int
+        && request.resource.data.chunks >= 1
+        && request.resource.data.chunks <= 200
+        && request.resource.data.encoding in ['gzip-b64', 'utf8-b64']
+        && request.resource.data.sha256 is string
+        && request.resource.data.sha256.matches('^[0-9a-f]{64}
+      allow get: if isMember(schoolId);
+      allow list, delete: if false;
+      allow create: if isAdmin(schoolId)
+        && request.resource.data.keys().hasOnly(['termStart', 'termEnd', 'workingSaturdays', 'holidays'])
+        && validCalendar(request.resource.data);
+      allow update: if isAdmin(schoolId)
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['termStart', 'termEnd', 'workingSaturdays', 'holidays'])
+        && validCalendar(request.resource.data);
+
+      match /members/{uid} {
+        // A user can read their membership but cannot grant themselves admin rights.
+        allow get: if signedIn() && (request.auth.uid == uid || isAdmin(schoolId));
+        allow list: if isAdmin(schoolId);
+        allow create, update, delete: if false;
+      }
+
+      match /students/{studentId} {
+        allow get: if isMember(schoolId) || isParentOf(schoolId, studentId);
+        allow list: if isMember(schoolId);
+        allow create: if isAdmin(schoolId)
+          && validStudent()
+          && request.resource.data.createdAt == request.time;
+        allow update: if isAdmin(schoolId)
+          && validStudent()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'className', 'active']);
+        allow delete: if false;
+      }
+
+      match /days/{dateId}/attendance/{studentId} {
+        allow get: if dateId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && (isMember(schoolId) || isParentOf(schoolId, studentId));
+        allow list: if dateId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && isMember(schoolId);
+        allow create, update: if isWriter(schoolId)
+          && dateId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && exists(/databases/$(database)/documents/schools/$(schoolId)/students/$(studentId))
+          && validAttendance();
+        allow delete: if false;
+      }
+    }
+
+    // All unspecified collections, including account/license paths, are denied.
+  }
+}
+)
+        && request.resource.data.byteLength is int
+        && request.resource.data.byteLength >= 0
+        && request.resource.data.byteLength <= 18000000
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validLegacyChunk() {
+      return request.resource.data.keys().hasOnly(['data', 'createdAt', 'createdBy'])
+        && request.resource.data.keys().hasAll(['data', 'createdAt', 'createdBy'])
+        && request.resource.data.data is string
+        && request.resource.data.data.size() <= 120000
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.createdBy == request.auth.uid;
+    }
+
+    match /schools/{schoolId} {
+      allow get: if isMember(schoolId);
+      allow list, delete: if false;
+      allow create: if isAdmin(schoolId)
+        && request.resource.data.keys().hasOnly(['termStart', 'termEnd', 'workingSaturdays', 'holidays'])
+        && validCalendar(request.resource.data);
+      allow update: if isAdmin(schoolId)
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['termStart', 'termEnd', 'workingSaturdays', 'holidays'])
+        && validCalendar(request.resource.data);
+
+      match /members/{uid} {
+        // A user can read their membership but cannot grant themselves admin rights.
+        allow get: if signedIn() && (request.auth.uid == uid || isAdmin(schoolId));
+        allow list: if isAdmin(schoolId);
+        allow create, update, delete: if false;
+      }
+
+      match /students/{studentId} {
+        allow get: if isMember(schoolId) || isParentOf(schoolId, studentId);
+        allow list: if isMember(schoolId);
+        allow create: if isAdmin(schoolId)
+          && validStudent()
+          && request.resource.data.createdAt == request.time;
+        allow update: if isAdmin(schoolId)
+          && validStudent()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'className', 'active']);
+        allow delete: if false;
+      }
+
+      match /days/{dateId}/attendance/{studentId} {
+        allow get: if dateId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && (isMember(schoolId) || isParentOf(schoolId, studentId));
+        allow list: if dateId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && isMember(schoolId);
+        allow create, update: if isWriter(schoolId)
+          && dateId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && exists(/databases/$(database)/documents/schools/$(schoolId)/students/$(studentId))
+          && validAttendance();
+        allow delete: if false;
+      }
+    }
+
+    // All unspecified collections, including account/license paths, are denied.
+  }
+}
+)
+            && validLegacyChunk();
+          allow update, delete: if false;
+        }
+      }
+
+    }
+
+    // All unspecified collections, including account/license paths, are denied.
+  }
+}
+)
+        && request.resource.data.chunks is int
+        && request.resource.data.chunks >= 1
+        && request.resource.data.chunks <= 200
+        && request.resource.data.encoding in ['gzip-b64', 'utf8-b64']
+        && request.resource.data.sha256 is string
+        && request.resource.data.sha256.matches('^[0-9a-f]{64}
+      allow get: if isMember(schoolId);
+      allow list, delete: if false;
+      allow create: if isAdmin(schoolId)
+        && request.resource.data.keys().hasOnly(['termStart', 'termEnd', 'workingSaturdays', 'holidays'])
+        && validCalendar(request.resource.data);
+      allow update: if isAdmin(schoolId)
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['termStart', 'termEnd', 'workingSaturdays', 'holidays'])
+        && validCalendar(request.resource.data);
+
+      match /members/{uid} {
+        // A user can read their membership but cannot grant themselves admin rights.
+        allow get: if signedIn() && (request.auth.uid == uid || isAdmin(schoolId));
+        allow list: if isAdmin(schoolId);
+        allow create, update, delete: if false;
+      }
+
+      match /students/{studentId} {
+        allow get: if isMember(schoolId) || isParentOf(schoolId, studentId);
+        allow list: if isMember(schoolId);
+        allow create: if isAdmin(schoolId)
+          && validStudent()
+          && request.resource.data.createdAt == request.time;
+        allow update: if isAdmin(schoolId)
+          && validStudent()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'className', 'active']);
+        allow delete: if false;
+      }
+
+      match /days/{dateId}/attendance/{studentId} {
+        allow get: if dateId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && (isMember(schoolId) || isParentOf(schoolId, studentId));
+        allow list: if dateId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && isMember(schoolId);
+        allow create, update: if isWriter(schoolId)
+          && dateId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && exists(/databases/$(database)/documents/schools/$(schoolId)/students/$(studentId))
+          && validAttendance();
+        allow delete: if false;
+      }
+    }
+
+    // All unspecified collections, including account/license paths, are denied.
+  }
+}
+)
+        && request.resource.data.byteLength is int
+        && request.resource.data.byteLength >= 0
+        && request.resource.data.byteLength <= 18000000
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validLegacyChunk() {
+      return request.resource.data.keys().hasOnly(['data', 'createdAt', 'createdBy'])
+        && request.resource.data.keys().hasAll(['data', 'createdAt', 'createdBy'])
+        && request.resource.data.data is string
+        && request.resource.data.data.size() <= 120000
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.createdBy == request.auth.uid;
+    }
+
     match /schools/{schoolId} {
       allow get: if isMember(schoolId);
       allow list, delete: if false;
