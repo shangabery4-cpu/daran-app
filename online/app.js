@@ -1,6 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js';
-import { getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, serverTimestamp, query, orderBy } from 'https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js';
+import { getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, writeBatch, serverTimestamp, query, orderBy } from 'https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js';
 import { firebaseConfig, schoolId } from './config.js';
 
 // The new online foundation is independent of the legacy Daragat activation code.
@@ -9,7 +9,7 @@ const $ = (id) => document.getElementById(id);
 const digits = '٠١٢٣٤٥٦٧٨٩';
 const num = (value) => String(value).replace(/[0-9]/g, (n) => digits[Number(n)]);
 const statuses = { present: 'ئامادە', absent: 'نائامادە', excused: 'مۆڵەت‌پێدراو' };
-const state = { auth: null, db: null, user: null, role: '', students: [], attendance: new Map(), busy: false };
+const state = { auth: null, db: null, user: null, role: '', students: [], studentsLoaded: false, attendance: new Map(), dayCache: new Map(), monthlyReport: null, busy: false };
 let messageTimeout;
 
 function localDate() {
@@ -60,6 +60,12 @@ function setBusy(value) {
   $('login-submit').disabled = value;
   $('work-date').disabled = value;
   $('refresh').disabled = value;
+  $('build-month').disabled = value;
+  $('load-members').disabled = value;
+  $('previous-day').disabled = value;
+  $('next-day').disabled = value;
+  $('today-button').disabled = value;
+  $('class-rename-form').querySelectorAll('button,input,select').forEach((element) => { element.disabled = value; });
   $('student-form').querySelectorAll('button,input').forEach((element) => { element.disabled = value; });
 }
 
@@ -92,24 +98,39 @@ function dateId() {
   return $('work-date').value;
 }
 
-async function loadDay() {
+async function loadDay({ refreshStudents = false, forceDay = false } = {}) {
   if (!state.user || state.busy) return;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateId())) { notify('ڕۆژێکی دروست هەڵبژێرە.', true); return; }
+  const selectedDate = dateId();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedDate)) { notify('ڕۆژێکی دروست هەڵبژێرە.', true); return; }
   setBusy(true);
   $('student-rows').replaceChildren(rowMessage('زانیاری بار دەکرێت…'));
+  const activeUid = state.user.uid;
   try {
-    // Explicit one-time reads; no permanent snapshot listeners or polling.
+    // Student records load once per session. Selected days are cached until explicit refresh.
     const [studentsSnap, attendanceSnap] = await Promise.all([
-      getDocs(query(collection(state.db, 'schools', schoolId, 'students'), orderBy('name'))),
-      getDocs(collection(state.db, 'schools', schoolId, 'days', dateId(), 'attendance'))
+      (!state.studentsLoaded || refreshStudents)
+        ? getDocs(query(collection(state.db, 'schools', schoolId, 'students'), orderBy('name')))
+        : Promise.resolve(null),
+      (!state.dayCache.has(selectedDate) || forceDay)
+        ? getDocs(collection(state.db, 'schools', schoolId, 'days', selectedDate, 'attendance'))
+        : Promise.resolve(null)
     ]);
-    state.students = studentsSnap.docs.filter((item) => item.data().active === true)
-      .map((item) => ({ id: item.id, name: String(item.data().name || ''), className: String(item.data().className || '') }));
-    state.attendance = new Map(attendanceSnap.docs.map((item) => [item.id, item.data().status]));
+    if (state.user?.uid !== activeUid) return;
+    if (studentsSnap) {
+      state.students = studentsSnap.docs.filter((item) => item.data().active === true)
+        .map((item) => ({ id: item.id, name: String(item.data().name || ''), className: String(item.data().className || '') }));
+      state.studentsLoaded = true;
+    }
+    if (attendanceSnap) {
+      state.dayCache.set(selectedDate, new Map(attendanceSnap.docs.map((item) => [item.id, item.data().status])));
+    }
+    state.attendance = new Map(state.dayCache.get(selectedDate) || []);
+    if (state.monthlyReport && (studentsSnap || (attendanceSnap && state.monthlyReport.month === selectedDate.slice(0, 7)))) invalidateMonthlyReport();
     renderClasses();
     render();
     badge('پەیوەندی چالاکە', true);
   } catch (error) {
+    if (state.user?.uid !== activeUid) return;
     $('student-rows').replaceChildren(rowMessage('زانیاری بار نەبوو؛ دووبارە هەوڵ بدەرەوە.'));
     notify(readableError(error), true);
     badge('هەڵەی پەیوەندی');
@@ -135,6 +156,7 @@ function renderClasses() {
   const classes = [...new Set(state.students.map((student) => student.className))].filter(Boolean).sort((a, b) => a.localeCompare(b, 'ckb'));
   for (const name of classes) select.add(new Option(name, name));
   if (classes.includes(previous)) select.value = previous;
+  renderClassManagement(classes);
 }
 
 function updateCounters() {
@@ -158,7 +180,7 @@ function render() {
   const students = visibleStudents();
   const body = $('student-rows');
   body.replaceChildren();
-  if (!students.length) { body.append(rowMessage('هیچ قوتابییەک نەدۆزرایەوە.')); return; }
+  if (!students.length) { body.append(rowMessage('هیچ قوتابییەک نەدۆزرایەوە.')); renderMonthlyReport(); return; }
   const fragment = document.createDocumentFragment();
   for (const student of students) {
     const row = document.createElement('tr');
@@ -194,6 +216,7 @@ function render() {
     fragment.append(row);
   }
   body.append(fragment);
+  renderMonthlyReport();
 }
 
 async function saveAttendance(student, select, button) {
@@ -209,7 +232,11 @@ async function saveAttendance(student, select, button) {
       updatedAt: serverTimestamp(),
       updatedBy: state.user.uid
     });
+    const savedMap = state.dayCache.get(savedDate) || new Map();
+    savedMap.set(student.id, value);
+    state.dayCache.set(savedDate, savedMap);
     if (savedDate === dateId()) { state.attendance.set(student.id, value); updateCounters(); }
+    invalidateMonthlyReport();
     notify(`دۆخی ${student.name} پاشەکەوت کرا.`);
   } catch (error) {
     notify(readableError(error), true);
@@ -233,6 +260,7 @@ async function addStudent(event) {
     state.students.push({ id: ref.id, name, className });
     state.students.sort((a, b) => a.name.localeCompare(b.name, 'ckb'));
     $('student-form').reset();
+    invalidateMonthlyReport();
     renderClasses(); render();
     notify('قوتابی بە سەرکەوتوویی زیاد کرا.');
   } catch (error) {
@@ -276,6 +304,7 @@ async function saveStudentEdits(event) {
     item.className = className;
     state.students.sort((a, b) => a.name.localeCompare(b.name, 'ckb'));
     $('student-dialog').close();
+    invalidateMonthlyReport();
     renderClasses();
     if (wasViewingOldClass && className !== oldClassName) $('class-filter').value = className;
     render();
@@ -315,11 +344,243 @@ function downloadDailyReport() {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+// Class administration uses existing student documents; no new Firestore collection is required.
+function renderClassManagement(classes) {
+  const cards = $('class-cards');
+  const select = $('class-rename-from');
+  const oldChoice = select.value;
+  cards.replaceChildren();
+  select.replaceChildren(new Option('پۆل هەڵبژێرە', ''));
+  for (const className of classes) {
+    select.add(new Option(className, className));
+    const count = state.students.filter((item) => item.className === className).length;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'class-card';
+    button.textContent = className + ' — ' + num(count) + ' قوتابی';
+    button.title = 'پیشاندانی قوتابییەکانی ئەم پۆلە';
+    button.addEventListener('click', () => {
+      $('class-filter').value = className;
+      render();
+      $('student-rows').closest('.panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    cards.append(button);
+  }
+  if (classes.includes(oldChoice)) select.value = oldChoice;
+  if (!classes.length) {
+    const p = document.createElement('p');
+    p.className = 'hint';
+    p.textContent = 'هێشتا هیچ پۆلێک تۆمار نەکراوە.';
+    cards.append(p);
+  }
+}
+
+async function renameClass(event) {
+  event.preventDefault();
+  if (!state.user || state.role !== 'admin' || state.busy) return;
+  const oldName = $('class-rename-from').value;
+  const nextName = $('class-rename-to').value.trim();
+  if (!oldName || !nextName || nextName.length > 40) {
+    notify('پۆلی کۆن و ناوی نوێی پۆل بە درستی دیاری بکە.', true);
+    return;
+  }
+  if (oldName === nextName) { notify('ناوی پۆل نەگۆڕاوە.'); return; }
+  const members = state.students.filter((student) => student.className === oldName);
+  if (!members.length) { notify('هیچ قوتابییەک لەم پۆلەدا نییە.', true); return; }
+  if (members.length > 20) {
+    notify('زیاتر لە ٢٠ قوتابییە؛ بۆ ئەم وەشانی تاقیکردنەوەیە قوتابییەکان بە تاکی بگوازەرەوە.', true);
+    return;
+  }
+  const approved = window.confirm('دڵنیایت ناوی پۆلی «' + oldName + '» بگۆڕیت بۆ «' + nextName + '» بۆ ' + num(members.length) + ' قوتابی؟ ئەم کارە ' + num(members.length) + ' نووسینی Firebase بەکاردەهێنێت.');
+  if (!approved) return;
+  setBusy(true);
+  try {
+    const batch = writeBatch(state.db);
+    for (const student of members) batch.update(doc(state.db, 'schools', schoolId, 'students', student.id), { className: nextName });
+    await batch.commit();
+    for (const student of members) student.className = nextName;
+    if ($('class-filter').value === oldName) $('class-filter').value = '';
+    $('class-rename-to').value = '';
+    invalidateMonthlyReport();
+    renderClasses();
+    $('class-filter').value = nextName;
+    render();
+    notify('ناوی پۆل گۆڕدرا و تۆمارەکانی ئامادەبوون پارێزراون.');
+  } catch (error) {
+    notify(readableError(error), true);
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function loadMembers() {
+  if (!state.user || state.role !== 'admin' || state.busy) return;
+  setBusy(true);
+  const tbody = $('member-rows');
+  tbody.replaceChildren();
+  const activeUid = state.user.uid;
+  try {
+    const result = await getDocs(collection(state.db, 'schools', schoolId, 'members'));
+    if (state.user?.uid !== activeUid) return;
+    for (const item of result.docs) {
+      const data = item.data();
+      const tr = document.createElement('tr');
+      const uid = document.createElement('td');
+      uid.className = 'uid-cell';
+      uid.textContent = item.id;
+      const role = document.createElement('td');
+      role.textContent = data.role === 'admin' ? 'بەڕێوەبەر' : data.role === 'staff' ? 'مامۆستا' : 'نەناسراو';
+      const active = document.createElement('td');
+      active.textContent = data.active === true ? 'چالاک' : 'ناچالاک';
+      tr.append(uid, role, active);
+      tbody.append(tr);
+    }
+    if (!result.docs.length) {
+      const tr = document.createElement('tr');
+      const cell = document.createElement('td');
+      cell.colSpan = 3;
+      cell.className = 'empty';
+      cell.textContent = 'هیچ ئەندامێک نییە.';
+      tr.append(cell);
+      tbody.append(tr);
+    }
+  } catch (error) {
+    notify(readableError(error), true);
+  } finally {
+    setBusy(false);
+  }
+}
+
+function changeDate(delta) {
+  if (!state.user || state.busy) return;
+  const current = dateId();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(current)) return;
+  const [year, month, day] = current.split('-').map(Number);
+  const date = new Date(year, month - 1, day, 12);
+  date.setDate(date.getDate() + delta);
+  const pad = (n) => String(n).padStart(2, '0');
+  $('work-date').value = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  loadDay();
+}
+
+function invalidateMonthlyReport() {
+  state.monthlyReport = null;
+  $('export-month').disabled = true;
+  $('month-rows').replaceChildren(rowMessage('ڕاپۆرتەکە پێویستی بە نوێکردنەوەیە.'));
+  $('month-rows').firstElementChild.firstElementChild.colSpan = 5;
+  $('month-progress').textContent = 'بۆ ڕاپۆرتی نوێ «دروستکردنی ڕاپۆرت» دابگرە.';
+}
+
+function renderMonthlyReport() {
+  if (!state.monthlyReport) return;
+  const tbody = $('month-rows');
+  tbody.replaceChildren();
+  const selected = new Set(visibleStudents().map((student) => student.id));
+  const fragment = document.createDocumentFragment();
+  for (const row of state.monthlyReport.rows) {
+    if (!selected.has(row.id)) continue;
+    const tr = document.createElement('tr');
+    for (const value of [row.name, row.className, num(row.present), num(row.absent), num(row.excused)]) {
+      const cell = document.createElement('td');
+      cell.textContent = value;
+      tr.append(cell);
+    }
+    fragment.append(tr);
+  }
+  tbody.append(fragment);
+  if (!tbody.children.length) {
+    const tr = document.createElement('tr');
+    const cell = document.createElement('td');
+    cell.colSpan = 5;
+    cell.className = 'empty';
+    cell.textContent = 'هیچ قوتابییەک لە فلتەرەکەدا نییە.';
+    tr.append(cell);
+    tbody.append(tr);
+  }
+  $('export-month').disabled = false;
+}
+
+function monthDates(value) {
+  if (!/^\d{4}-\d{2}$/.test(value)) return null;
+  const [year, month] = value.split('-').map(Number);
+  if (year < 2000 || year > 2100 || month < 1 || month > 12) return null;
+  const days = new Date(year, month, 0).getDate();
+  return Array.from({ length: days }, (_, i) => value + '-' + String(i + 1).padStart(2, '0')).filter((day) => day <= localDate());
+}
+
+async function buildMonthlyReport() {
+  if (!state.user || state.busy || !state.studentsLoaded) return;
+  const month = $('report-month').value;
+  const dates = monthDates(month);
+  if (!dates) { notify('مانگێکی دروست هەڵبژێرە.', true); return; }
+  if (!dates.length) { notify('ئەم مانگە هێشتا دەستی پێنەکردووە.', true); return; }
+  const missing = dates.filter((day) => !state.dayCache.has(day));
+  if (missing.length && !window.confirm('بۆ ڕاپۆرتی مانگی «' + month + '»، تا ' + num(missing.length) + ' داواکاری خوێندنەوە لە Firebase دەکرێت. دەتەوێت بەردەوام بیت؟')) return;
+  const activeUid = state.user.uid;
+  setBusy(true);
+  $('export-month').disabled = true;
+  try {
+    for (let offset = 0; offset < missing.length; offset += 3) {
+      const chunk = missing.slice(offset, offset + 3);
+      const snapshots = await Promise.all(chunk.map((date) =>
+        getDocs(collection(state.db, 'schools', schoolId, 'days', date, 'attendance'))));
+      if (state.user?.uid !== activeUid) return;
+      for (let i = 0; i < chunk.length; i++) {
+        state.dayCache.set(chunk[i], new Map(snapshots[i].docs.map((item) => [item.id, item.data().status])));
+      }
+      $('month-progress').textContent = 'خوێندنەوەی ڕۆژەکان: ' + num(Math.min(offset + chunk.length, missing.length)) + ' / ' + num(missing.length);
+    }
+    const rows = state.students.map((student) => {
+      const counts = { present: 0, absent: 0, excused: 0 };
+      for (const date of dates) {
+        const value = state.dayCache.get(date)?.get(student.id);
+        if (Object.hasOwn(counts, value)) counts[value]++;
+      }
+      return { ...student, ...counts };
+    });
+    state.monthlyReport = { month, rows };
+    renderMonthlyReport();
+    $('month-progress').textContent = 'ڕاپۆرتی ' + month + ' ئامادەیە. دۆخە نەنووسراوەکان نەژمێردراون. فلتەری پۆل/گەڕان کاریگەری لە ڕیزە پیشاندراوەکان دەکات.';
+    notify('ڕاپۆرتی مانگانە دروست کرا.');
+  } catch (error) {
+    $('month-progress').textContent = 'ڕاپۆرتەکە تەواو نەبوو. دووبارە هەوڵ بدەرەوە.';
+    notify(readableError(error), true);
+  } finally {
+    setBusy(false);
+  }
+}
+
+function downloadMonthlyReport() {
+  if (!state.user || state.busy || !state.monthlyReport) return;
+  const selected = new Set(visibleStudents().map((student) => student.id));
+  const rows = [
+    ['مانگ', 'ناوی قوتابی', 'پۆلی ئێستا', 'ئامادە', 'نائامادە', 'مۆڵەت‌پێدراو'],
+    ...state.monthlyReport.rows.filter((item) => selected.has(item.id)).map((item) =>
+      [state.monthlyReport.month, item.name, item.className, item.present, item.absent, item.excused])
+  ];
+  const csv = '\uFEFF' + rows.map((row) => row.map(csvCell).join(',')).join('\r\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'daragat-month-' + state.monthlyReport.month + '.csv';
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 async function handleAuth(user) {
   state.user = null;
   state.role = '';
   state.students = [];
+  state.studentsLoaded = false;
   state.attendance = new Map();
+  state.dayCache = new Map();
+  state.monthlyReport = null;
+  $('month-rows').replaceChildren();
+  $('month-progress').textContent = 'مانگ هەڵبژێرە و ڕاپۆرت دروست بکە.';
+  $('export-month').disabled = true;
+  $('member-rows').replaceChildren();
   $('logout').hidden = !user;
   if (!user) { show('login-panel'); badge('چوونەژوورەوە پێویستە'); return; }
   try {
@@ -327,6 +588,8 @@ async function handleAuth(user) {
     state.user = user;
     state.role = role;
     $('student-entry').hidden = role !== 'admin';
+    $('class-management').hidden = role !== 'admin';
+    $('members-panel').hidden = role !== 'admin';
     $('manage-heading').hidden = role !== 'admin';
     $('user-summary').textContent = `${user.email || 'هەژمار'} • ${role === 'admin' ? 'بەڕێوەبەر' : 'مامۆستا'} • ${schoolId}`;
     show('dashboard');
@@ -339,10 +602,19 @@ async function handleAuth(user) {
 
 function start() {
   $('work-date').value = localDate();
+  $('report-month').value = localDate().slice(0, 7);
   $('login-form').addEventListener('submit', login);
   $('student-form').addEventListener('submit', addStudent);
-  $('work-date').addEventListener('change', loadDay);
-  $('refresh').addEventListener('click', loadDay);
+  $('work-date').addEventListener('change', () => loadDay());
+  $('previous-day').addEventListener('click', () => changeDate(-1));
+  $('next-day').addEventListener('click', () => changeDate(1));
+  $('today-button').addEventListener('click', () => { $('work-date').value = localDate(); loadDay(); });
+  $('refresh').addEventListener('click', () => loadDay({ refreshStudents: true, forceDay: true }));
+  $('class-rename-form').addEventListener('submit', renameClass);
+  $('load-members').addEventListener('click', loadMembers);
+  $('build-month').addEventListener('click', buildMonthlyReport);
+  $('export-month').addEventListener('click', downloadMonthlyReport);
+  $('report-month').addEventListener('change', invalidateMonthlyReport);
   $('export-day').addEventListener('click', downloadDailyReport);
   $('print-day').addEventListener('click', () => window.print());
   $('student-edit-form').addEventListener('submit', saveStudentEdits);
