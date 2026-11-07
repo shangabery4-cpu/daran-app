@@ -9,7 +9,7 @@ const $ = (id) => document.getElementById(id);
 const digits = '٠١٢٣٤٥٦٧٨٩';
 const num = (value) => String(value).replace(/[0-9]/g, (n) => digits[Number(n)]);
 const statuses = { present: 'ئامادە', absent: 'نائامادە', excused: 'مۆڵەت‌پێدراو' };
-const state = { auth: null, db: null, user: null, role: '', students: [], studentsLoaded: false, attendance: new Map(), dayCache: new Map(), monthlyReport: null, busy: false };
+const state = { auth: null, db: null, user: null, role: '', students: [], studentsLoaded: false, attendance: new Map(), dayCache: new Map(), monthlyReport: null, parentReport: null, parentDayCache: new Map(), calendar: { termStart: '', termEnd: '', workingSaturdays: [], holidays: [] }, busy: false };
 let messageTimeout;
 
 function localDate() {
@@ -62,6 +62,8 @@ function setBusy(value) {
   $('refresh').disabled = value;
   $('build-month').disabled = value;
   $('load-members').disabled = value;
+  $('build-parent-report').disabled = value;
+  $('parent-report-form').querySelectorAll('input,select').forEach((element) => { element.disabled = value; });
   $('previous-day').disabled = value;
   $('next-day').disabled = value;
   $('today-button').disabled = value;
@@ -126,8 +128,10 @@ async function loadDay({ refreshStudents = false, forceDay = false } = {}) {
     }
     state.attendance = new Map(state.dayCache.get(selectedDate) || []);
     if (state.monthlyReport && (studentsSnap || (attendanceSnap && state.monthlyReport.month === selectedDate.slice(0, 7)))) invalidateMonthlyReport();
+    if (state.parentReport && (studentsSnap || (attendanceSnap && state.parentReport.dates.includes(selectedDate)))) invalidateParentReport();
     renderClasses();
     render();
+    renderHolidayBadge();
     badge('پەیوەندی چالاکە', true);
   } catch (error) {
     if (state.user?.uid !== activeUid) return;
@@ -157,6 +161,11 @@ function renderClasses() {
   for (const name of classes) select.add(new Option(name, name));
   if (classes.includes(previous)) select.value = previous;
   renderClassManagement(classes);
+  const parent = $('parent-student');
+  const previousStudent = parent.value;
+  parent.replaceChildren(new Option('قوتابی هەڵبژێرە', ''));
+  for (const student of state.students) parent.add(new Option(student.name + ' — ' + student.className, student.id));
+  if (state.students.some((student) => student.id === previousStudent)) parent.value = previousStudent;
 }
 
 function updateCounters() {
@@ -237,6 +246,7 @@ async function saveAttendance(student, select, button) {
     state.dayCache.set(savedDate, savedMap);
     if (savedDate === dateId()) { state.attendance.set(student.id, value); updateCounters(); }
     invalidateMonthlyReport();
+    invalidateParentReport();
     notify(`دۆخی ${student.name} پاشەکەوت کرا.`);
   } catch (error) {
     notify(readableError(error), true);
@@ -261,6 +271,7 @@ async function addStudent(event) {
     state.students.sort((a, b) => a.name.localeCompare(b.name, 'ckb'));
     $('student-form').reset();
     invalidateMonthlyReport();
+    invalidateParentReport();
     renderClasses(); render();
     notify('قوتابی بە سەرکەوتوویی زیاد کرا.');
   } catch (error) {
@@ -305,6 +316,7 @@ async function saveStudentEdits(event) {
     state.students.sort((a, b) => a.name.localeCompare(b.name, 'ckb'));
     $('student-dialog').close();
     invalidateMonthlyReport();
+    invalidateParentReport();
     renderClasses();
     if (wasViewingOldClass && className !== oldClassName) $('class-filter').value = className;
     render();
@@ -402,6 +414,7 @@ async function renameClass(event) {
     if ($('class-filter').value === oldName) $('class-filter').value = '';
     $('class-rename-to').value = '';
     invalidateMonthlyReport();
+    invalidateParentReport();
     renderClasses();
     $('class-filter').value = nextName;
     render();
@@ -569,6 +582,131 @@ function downloadMonthlyReport() {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+// Academic schedule is read-only until an admin configures the school document
+// in Firebase Console. No browser-side settings writes or public access are added.
+async function loadCalendar() {
+  state.calendar = { termStart: '', termEnd: '', workingSaturdays: [], holidays: [] };
+  try {
+    const snap = await getDoc(doc(state.db, 'schools', schoolId));
+    if (snap.exists()) {
+      const data = snap.data();
+      const validDay = (item) => typeof item === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(item);
+      state.calendar.termStart = validDay(data.termStart) ? data.termStart : '';
+      state.calendar.termEnd = validDay(data.termEnd) ? data.termEnd : '';
+      state.calendar.workingSaturdays = Array.isArray(data.workingSaturdays) ? data.workingSaturdays.filter(validDay).slice(0, 400) : [];
+      state.calendar.holidays = Array.isArray(data.holidays) ? data.holidays.filter(validDay).slice(0, 400) : [];
+    }
+  } catch {
+    // The basic attendance flow remains usable when optional calendar settings are absent.
+  }
+  renderHolidayBadge();
+}
+
+function renderHolidayBadge() {
+  const current = dateId();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(current)) return;
+  const [year, month, day] = current.split('-').map(Number);
+  const weekday = new Date(year, month - 1, day, 12).getDay();
+  const c = state.calendar;
+  const outside = (c.termStart && current < c.termStart) || (c.termEnd && current > c.termEnd);
+  const off = c.holidays.includes(current) || weekday === 5 || (weekday === 6 && !c.workingSaturdays.includes(current));
+  const marker = $('holiday-badge');
+  marker.textContent = outside ? 'دەرەوەی ساڵی خوێندن' : off ? 'پشوو' : 'دەوام';
+  marker.className = 'badge ' + (outside || off ? 'bad' : 'good');
+  const term = c.termStart && c.termEnd ? ('ساڵی خوێندن: ' + c.termStart + ' تا ' + c.termEnd + '. ') : 'ساڵی خوێندن هێشتا بە شێوەی گشتی دیاری نەکراوە. ';
+  $('calendar-info').textContent = term + 'هەینی و شەممە بە بنەڕەت پشوون؛ بەرواری دەوامی شەممە و پشووە زیادەکان لە Firebase Console، دۆکیومێنتی schools/' + schoolId + ' دیاری دەکرێن. نیشانەی پشوو تۆمارکردن قەدەغە ناکات.';
+}
+
+function weekDates(firstDay) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(firstDay)) return null;
+  const [year, month, day] = firstDay.split('-').map(Number);
+  const start = new Date(year, month - 1, day, 12);
+  if (start.getFullYear() !== year || start.getMonth() !== month - 1 || start.getDate() !== day) return null;
+  const pad = (value) => String(value).padStart(2, '0');
+  return Array.from({ length: 7 }, (_, index) => {
+    const current = new Date(year, month - 1, day + index, 12);
+    return `${current.getFullYear()}-${pad(current.getMonth() + 1)}-${pad(current.getDate())}`;
+  });
+}
+
+function invalidateParentReport() {
+  state.parentReport = null;
+  $('parent-preview').hidden = true;
+  $('parent-progress').textContent = 'بۆ ڕاپۆرتی نوێ «دروستکردنی ڕاپۆرت» دابگرە.';
+}
+
+async function buildParentReport(event) {
+  event.preventDefault();
+  if (!state.user || state.busy || !state.studentsLoaded) return;
+  const student = state.students.find((item) => item.id === $('parent-student').value);
+  const dates = weekDates($('parent-week-start').value);
+  if (!student || !dates) { notify('قوتابی و بەرواری دروست هەڵبژێرە.', true); return; }
+  // Only fetch this student's document, rather than entire daily attendance lists.
+  const needed = dates.filter((day) => day <= localDate() && !state.dayCache.has(day) && !state.parentDayCache.has(student.id + '|' + day));
+  if (needed.length && !window.confirm('بۆ ڕاپۆرتی ٧ ڕۆژە تا ' + num(needed.length) + ' داواکاری لە Firebase دەکرێت. بەردەوام بیت؟')) return;
+  const activeUid = state.user.uid;
+  setBusy(true);
+  try {
+    for (let index = 0; index < needed.length; index += 3) {
+      const chunk = needed.slice(index, index + 3);
+      const snapshots = await Promise.all(chunk.map((day) => getDoc(doc(state.db, 'schools', schoolId, 'days', day, 'attendance', student.id))));
+      if (state.user?.uid !== activeUid) return;
+      chunk.forEach((day, pos) => state.parentDayCache.set(student.id + '|' + day, snapshots[pos].exists() ? snapshots[pos].data().status : null));
+    }
+    const rows = dates.map((day) => ({
+      date: day,
+      label: day > localDate() ? 'ڕۆژی داهاتوو' : statuses[state.dayCache.has(day) ? state.dayCache.get(day).get(student.id) : state.parentDayCache.get(student.id + '|' + day)] || 'دیاری نەکراوە'
+    }));
+    state.parentReport = { student: { ...student }, dates, rows };
+    $('parent-report-heading').textContent = student.name + ' — ' + student.className;
+    $('parent-report-rows').replaceChildren();
+    const tally = { present: 0, absent: 0, excused: 0 };
+    for (const row of rows) {
+      const tr = document.createElement('tr');
+      for (const value of [row.date, row.label]) {
+        const td = document.createElement('td');
+        td.textContent = value;
+        tr.append(td);
+      }
+      $('parent-report-rows').append(tr);
+      const matching = Object.keys(statuses).find((status) => statuses[status] === row.label);
+      if (matching) tally[matching]++;
+    }
+    $('parent-report-total').textContent = 'ئامادە: ' + num(tally.present) + ' | نائامادە: ' + num(tally.absent) + ' | مۆڵەت‌پێدراو: ' + num(tally.excused);
+    $('parent-preview').hidden = false;
+    $('parent-progress').textContent = 'ڕاپۆرتەکە تەنها بۆ ئەم قوتابییە لە پەڕەکەتدا دروست کرا؛ کەی و لەگەڵ کێ هاوبەشی دەکەیت بە دەستی خۆتە.';
+    notify('ڕاپۆرتی تایبەتی قوتابی ئامادەیە.');
+  } catch (error) {
+    notify(readableError(error), true);
+  } finally {
+    setBusy(false);
+  }
+}
+
+function downloadParentReport() {
+  if (!state.user || !state.parentReport || state.busy) return;
+  const report = state.parentReport;
+  const rows = [['ناوی قوتابی', 'پۆلی ئێستا', 'بەروار', 'دۆخ'], ...report.rows.map((row) =>
+    [report.student.name, report.student.className, row.date, row.label])];
+  const csv = '\uFEFF' + rows.map((row) => row.map(csvCell).join(',')).join('\r\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'daragat-parent-' + report.dates[0] + '.csv';
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function printParentReport() {
+  if (!state.user || !state.parentReport) return;
+  document.body.classList.add('print-parent');
+  const cleanup = () => document.body.classList.remove('print-parent');
+  window.addEventListener('afterprint', cleanup, { once: true });
+  window.print();
+}
+
 async function handleAuth(user) {
   state.user = null;
   state.role = '';
@@ -577,6 +715,10 @@ async function handleAuth(user) {
   state.attendance = new Map();
   state.dayCache = new Map();
   state.monthlyReport = null;
+  state.parentReport = null;
+  state.parentDayCache = new Map();
+  state.calendar = { termStart: '', termEnd: '', workingSaturdays: [], holidays: [] };
+  $('parent-preview').hidden = true;
   $('month-rows').replaceChildren();
   $('month-progress').textContent = 'مانگ هەڵبژێرە و ڕاپۆرت دروست بکە.';
   $('export-month').disabled = true;
@@ -593,6 +735,7 @@ async function handleAuth(user) {
     $('manage-heading').hidden = role !== 'admin';
     $('user-summary').textContent = `${user.email || 'هەژمار'} • ${role === 'admin' ? 'بەڕێوەبەر' : 'مامۆستا'} • ${schoolId}`;
     show('dashboard');
+    await loadCalendar();
     await loadDay();
   } catch (error) {
     notify(error.message === 'membership-missing' ? 'هەژمارەکەت مۆڵەتی ئەم قوتابخانەیەی نییە. لەگەڵ بەڕێوەبەر قسە بکە.' : readableError(error), true);
@@ -603,6 +746,7 @@ async function handleAuth(user) {
 function start() {
   $('work-date').value = localDate();
   $('report-month').value = localDate().slice(0, 7);
+  $('parent-week-start').value = localDate();
   $('login-form').addEventListener('submit', login);
   $('student-form').addEventListener('submit', addStudent);
   $('work-date').addEventListener('change', () => loadDay());
@@ -615,6 +759,17 @@ function start() {
   $('build-month').addEventListener('click', buildMonthlyReport);
   $('export-month').addEventListener('click', downloadMonthlyReport);
   $('report-month').addEventListener('change', invalidateMonthlyReport);
+  $('parent-report-form').addEventListener('submit', buildParentReport);
+  $('parent-student').addEventListener('change', invalidateParentReport);
+  $('parent-week-start').addEventListener('change', invalidateParentReport);
+  $('export-parent-report').addEventListener('click', downloadParentReport);
+  $('print-parent-report').addEventListener('click', printParentReport);
+  $('open-display').addEventListener('click', () => { window.open(new URL('./display.html', window.location.href).href, '_blank', 'noopener,noreferrer'); });
+  $('copy-display-link').addEventListener('click', async () => {
+    const url = new URL('./display.html', window.location.href).href;
+    try { await navigator.clipboard.writeText(url); notify('لینکی شاشە کۆپی کرا.'); }
+    catch { window.prompt('لینکەکە کۆپی بکە:', url); }
+  });
   $('export-day').addEventListener('click', downloadDailyReport);
   $('print-day').addEventListener('click', () => window.print());
   $('student-edit-form').addEventListener('submit', saveStudentEdits);
