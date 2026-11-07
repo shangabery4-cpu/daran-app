@@ -22,7 +22,11 @@ html,body{margin:0;min-height:100%;font-family:Tahoma,'Segoe UI',Arial,sans-seri
     }));
     const html=data.join('');
     if(!html.startsWith('<!DOCTYPE html>') || !html.trimEnd().endsWith('</html>') || !html.includes('dg-sorani-local-account-portal')) throw new Error('Invalid package');
-    document.open(); document.write(html); document.close();
+    // Keep the original ZIP application intact and add protected online modules inside its navigation.
+    const bridgeTag = '<script defer src="./online/legacy-bridge.js"><\/script>';
+    const unified = html.replace(/<\/body>\s*<\/html>\s*$/i, bridgeTag + '\n</body>\n</html>');
+    if (unified === html) throw new Error('Unable to attach online navigation');
+    document.open(); document.write(unified); document.close();
   }catch(e){
     document.getElementById('spin').style.display='none';
     document.getElementById('msg').textContent='بەرنامەکە بە تەواوی بار نەبوو. پەیوەندیی ئینتەرنێت بپشکنە.';
