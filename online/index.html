@@ -50,10 +50,22 @@
         </form>
       </section>
       <section class="panel">
-        <div class="table-heading"><h2>تۆماری ڕۆژانە</h2><div class="filters"><button id="refresh" type="button" class="secondary">نوێکردنەوە</button><label class="sr-only" for="class-filter">پۆل</label><select id="class-filter"><option value="">هەموو پۆلەکان</option></select><label class="sr-only" for="student-search">گەڕان</label><input id="student-search" type="search" placeholder="گەڕان بە ناوی قوتابی…"></div></div>
-        <div class="table-wrap"><table><thead><tr><th>ناوی قوتابی</th><th>پۆل</th><th>دۆخی ڕۆژ</th><th>پاشەکەوتکردن</th></tr></thead><tbody id="student-rows"><tr><td colspan="4" class="empty">زانیاری بار دەکرێت…</td></tr></tbody></table></div>
-        <p class="hint">گۆڕانکاری تەنها کاتێک پاشەکەوت دەبێت کە سێرڤەر وەڵامی سەرکەوتوو بدات. دووبارە نووسین بۆ دۆخی هەمان ڕۆژ ناکرێت.</p>
+        <div class="table-heading"><h2>تۆماری ڕۆژانە</h2><div class="filters"><button id="refresh" type="button" class="secondary">نوێکردنەوە</button><button id="export-day" type="button" class="secondary">داگرتنی ڕاپۆرت CSV</button><button id="print-day" type="button" class="secondary">چاپی ڕۆژانە</button><label class="sr-only" for="class-filter">پۆل</label><select id="class-filter"><option value="">هەموو پۆلەکان</option></select><label class="sr-only" for="student-search">گەڕان</label><input id="student-search" type="search" placeholder="گەڕان بە ناوی قوتابی…"></div></div>
+        <div class="table-wrap"><table><thead><tr><th>ناوی قوتابی</th><th>پۆل</th><th>دۆخی ڕۆژ</th><th>پاشەکەوتکردن</th><th id="manage-heading" hidden>بەڕێوەبردن</th></tr></thead><tbody id="student-rows"><tr><td colspan="4" class="empty">زانیاری بار دەکرێت…</td></tr></tbody></table></div>
+        <p class="hint">گۆڕانکاری تەنها کاتێک پاشەکەوت دەبێت کە سێرڤەر وەڵامی سەرکەوتوو بدات. ڕاپۆرتی CSV بەپێی پۆل و گەڕانی هەڵبژێردراوە.</p>
       </section>
+      <dialog id="student-dialog" class="student-dialog" aria-labelledby="student-dialog-title">
+        <form id="student-edit-form">
+          <h2 id="student-dialog-title">دەستکاریکردن / گواستنەوەی قوتابی</h2>
+          <p class="hint">گۆڕینی پۆل تۆماری ئامادەبوونی پێشووی قوتابی ناسڕێتەوە.</p>
+          <input type="hidden" id="edit-student-id">
+          <label for="edit-student-name">ناوی قوتابی</label>
+          <input id="edit-student-name" type="text" maxlength="100" required>
+          <label for="edit-student-class">پۆل / لق</label>
+          <input id="edit-student-class" type="text" maxlength="40" required>
+          <div class="dialog-actions"><button id="cancel-student-edit" type="button" class="secondary">پاشگەزبوونەوە</button><button id="save-student-edit" type="submit" class="primary">پاشەکەوتکردن</button></div>
+        </form>
+      </dialog>
     </section>
     <p id="message" class="message" role="status" aria-live="polite" hidden></p>
   </main>
