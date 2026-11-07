@@ -9,7 +9,7 @@ const $ = (id) => document.getElementById(id);
 const digits = '٠١٢٣٤٥٦٧٨٩';
 const num = (value) => String(value).replace(/[0-9]/g, (n) => digits[Number(n)]);
 const statuses = { present: 'ئامادە', absent: 'نائامادە', excused: 'مۆڵەت‌پێدراو' };
-const state = { auth: null, db: null, user: null, role: '', students: [], studentsLoaded: false, attendance: new Map(), dayCache: new Map(), monthlyReport: null, parentReport: null, calendar: { termStart: '', termEnd: '', workingSaturdays: [], holidays: [] }, busy: false };
+const state = { auth: null, db: null, user: null, role: '', students: [], studentsLoaded: false, attendance: new Map(), dayCache: new Map(), monthlyReport: null, parentReport: null, parentDayCache: new Map(), calendar: { termStart: '', termEnd: '', workingSaturdays: [], holidays: [] }, busy: false };
 let messageTimeout;
 
 function localDate() {
@@ -641,20 +641,21 @@ async function buildParentReport(event) {
   const student = state.students.find((item) => item.id === $('parent-student').value);
   const dates = weekDates($('parent-week-start').value);
   if (!student || !dates) { notify('قوتابی و بەرواری دروست هەڵبژێرە.', true); return; }
-  const needed = dates.filter((day) => day <= localDate() && !state.dayCache.has(day));
+  // Only fetch this student's document, rather than entire daily attendance lists.
+  const needed = dates.filter((day) => day <= localDate() && !state.dayCache.has(day) && !state.parentDayCache.has(student.id + '|' + day));
   if (needed.length && !window.confirm('بۆ ڕاپۆرتی ٧ ڕۆژە تا ' + num(needed.length) + ' داواکاری لە Firebase دەکرێت. بەردەوام بیت؟')) return;
   const activeUid = state.user.uid;
   setBusy(true);
   try {
     for (let index = 0; index < needed.length; index += 3) {
       const chunk = needed.slice(index, index + 3);
-      const snapshots = await Promise.all(chunk.map((day) => getDocs(collection(state.db, 'schools', schoolId, 'days', day, 'attendance'))));
+      const snapshots = await Promise.all(chunk.map((day) => getDoc(doc(state.db, 'schools', schoolId, 'days', day, 'attendance', student.id))));
       if (state.user?.uid !== activeUid) return;
-      chunk.forEach((day, pos) => state.dayCache.set(day, new Map(snapshots[pos].docs.map((item) => [item.id, item.data().status]))));
+      chunk.forEach((day, pos) => state.parentDayCache.set(student.id + '|' + day, snapshots[pos].exists() ? snapshots[pos].data().status : null));
     }
     const rows = dates.map((day) => ({
       date: day,
-      label: day > localDate() ? 'ڕۆژی داهاتوو' : statuses[state.dayCache.get(day)?.get(student.id)] || 'دیاری نەکراوە'
+      label: day > localDate() ? 'ڕۆژی داهاتوو' : statuses[state.dayCache.has(day) ? state.dayCache.get(day).get(student.id) : state.parentDayCache.get(student.id + '|' + day)] || 'دیاری نەکراوە'
     }));
     state.parentReport = { student: { ...student }, dates, rows };
     $('parent-report-heading').textContent = student.name + ' — ' + student.className;
@@ -715,6 +716,7 @@ async function handleAuth(user) {
   state.dayCache = new Map();
   state.monthlyReport = null;
   state.parentReport = null;
+  state.parentDayCache = new Map();
   state.calendar = { termStart: '', termEnd: '', workingSaturdays: [], holidays: [] };
   $('parent-preview').hidden = true;
   $('month-rows').replaceChildren();
