@@ -264,7 +264,10 @@ async function saveStudentEdits(event) {
     return;
   }
   if (name === item.name && className === item.className) { $('student-dialog').close(); return; }
+  const oldClassName = item.className;
+  const wasViewingOldClass = $('class-filter').value === oldClassName;
   $('save-student-edit').disabled = true;
+  $('cancel-student-edit').disabled = true;
   setBusy(true);
   try {
     // Keep the same student document ID; historical attendance is keyed by this ID.
@@ -274,6 +277,7 @@ async function saveStudentEdits(event) {
     state.students.sort((a, b) => a.name.localeCompare(b.name, 'ckb'));
     $('student-dialog').close();
     renderClasses();
+    if (wasViewingOldClass && className !== oldClassName) $('class-filter').value = className;
     render();
     notify('زانیاریی قوتابی پاشەکەوت کرا؛ تۆمارە کۆنەکانی ئامادەبوون پارێزراون.');
   } catch (error) {
@@ -281,6 +285,7 @@ async function saveStudentEdits(event) {
   } finally {
     setBusy(false);
     $('save-student-edit').disabled = false;
+    $('cancel-student-edit').disabled = false;
   }
 }
 
