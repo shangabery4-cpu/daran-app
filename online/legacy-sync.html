@@ -11,8 +11,8 @@
 .heading{background:linear-gradient(125deg,#0e7160,#154439);color:#fff;border-radius:21px;padding:23px;box-shadow:0 13px 24px #143b3330}
 .heading h1{font-size:23px;margin:0 0 6px}.heading p{margin:0;opacity:.9;font-size:13px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:17px 0}.card{background:#fff;border:1px solid var(--line);border-radius:17px;padding:18px;box-shadow:0 5px 14px #143b3310}
-h2{margin:0 0 13px;font-size:17px}p{margin:6px 0}label{font-weight:700;display:block;margin:8px 0 4px}input{width:100%;min-width:0;display:block;border:1px solid #c5d7cd;border-radius:11px;padding:12px;font:inherit;direction:ltr;text-align:left;background:#fff}
-.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}button{font:700 14px Tahoma,"Segoe UI",sans-serif;border:1px solid transparent;padding:12px 17px;border-radius:11px;cursor:pointer;background:var(--green);color:white}button:hover:not(:disabled){filter:brightness(.94)}button.secondary{background:#edf7f1;border-color:#b9d7c8;color:#145641}button.warn{background:var(--rose)}button:disabled{cursor:not-allowed;opacity:.5}
+h2{margin:0 0 13px;font-size:17px}p{margin:6px 0}label{font-weight:700;display:block;margin:8px 0 4px}input,select{width:100%;min-width:0;display:block;border:1px solid #c5d7cd;border-radius:11px;padding:12px;font:inherit;direction:ltr;text-align:left;background:#fff}
+select{direction:rtl;text-align:right}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}button{font:700 14px Tahoma,"Segoe UI",sans-serif;border:1px solid transparent;padding:12px 17px;border-radius:11px;cursor:pointer;background:var(--green);color:white}button:hover:not(:disabled){filter:brightness(.94)}button.secondary{background:#edf7f1;border-color:#b9d7c8;color:#145641}button.warn{background:var(--rose)}button:disabled{cursor:not-allowed;opacity:.5}
 .badge{display:inline-block;background:#eaf5ee;color:#176245;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:700}.badge.off{background:#fff1e6;color:#9a4e10}
 .note{background:#fff7e8;color:#7a572b;border:1px solid #f4dfba;padding:12px 15px;border-radius:12px;margin-top:15px;font-size:13px}.ok{color:#056f4e}.error{color:#b72c3d}
 .list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}.item{border:1px solid var(--line);background:#fbfdfb;border-radius:10px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}.item span{color:var(--muted);font-size:12px}
@@ -25,7 +25,7 @@ h2{margin:0 0 13px;font-size:17px}p{margin:6px 0}label{font-weight:700;display:b
 <body>
 <main class="wrap">
   <div class="heading"><h1>☁️ پاشەکەوتی سەحابیی دارەجات</h1><p>پەیوەستکردنی تۆمارەکانی وەشانی ئەسڵی دارەجات بە Firebase — بە هەمان ڕووکار و پەڕەکان</p></div>
-  <div class="note">ئەم بەشە تەنها ئەو داتایانە دەپارێزێت کە لە لیستی خوارەوەدا دیاریکراون. <strong>ئەرشیفی ساڵانی پێشوو لە IndexedDB، و داتای بەشی ئامادەبوونی ئۆنلاین بە جیاوازن</strong> و لێرەدا ناگوێزرێنەوە. ئەرشیفەکان دەتوانیت بە یەدەکی JSON ـی جیاواز داگرێیت و بگەڕێنیتەوە، بەڵام هێشتا لە Firebase نانێردرێن.</div>
+  <div class="note">ئەم بەشە تەنها ئەو داتایانە دەپارێزێت کە لە لیستی خوارەوەدا دیاریکراون. <strong>ئەرشیفی ساڵانی پێشوو لە IndexedDB، و داتای بەشی ئامادەبوونی ئۆنلاین بە جیاوازن</strong> و لێرەدا ناگوێزرێنەوە. ئەرشیفەکان دەتوانیت وەک JSON داگرێیت یان بە فەرمانی بەڕێوەبەر هەر ساڵێک بە جیا لە Firebase بپارێزیت.</div>
   <div class="note">بۆ پاراستنی هەژمارەکان، وشە نهێنی، زانیارییەکانی چالاککردن و مۆڵەتەکان <strong>هەرگیز</strong> بۆ ئەم پاشەکەوتە ناگوێزرێنەوە. ئەمە لەگەڵ تۆماری ئامادەبوونی نوێی ئۆنلاین، دوو سەرچاوەی جیاوازن؛ تۆمارەکان خۆکارانە یەکناخرێن.</div>
   <div id="feedback" role="status" aria-live="polite">سیستەمی هاوکاتکردن ئامادە دەکرێت…</div>
   <progress id="progress" max="100" value="0" hidden></progress>
@@ -61,6 +61,26 @@ h2{margin:0 0 13px;font-size:17px}p{margin:6px 0}label{font-weight:700;display:b
     </div>
     <p id="year-archive-status" role="status" aria-live="polite">ئەم هەڵبژاردنە بە Firebase پەیوەست نییە. فایلەکە زانیارییە تایبەتییەکانی ساڵەکانی پێشوو لەخۆ دەگرێت؛ لە شوێنێکی پارێزراو هەڵیبگرە.</p>
   </section>
+
+  <section class="card" id="cloud-year-panel">
+    <h2>☁️ ئەرشیفی سەحابیی ساڵانی داخراو — بە دەستی بەڕێوەبەر</h2>
+    <p>هەر ساڵێکی ئەرشیفکراو بە جیا بۆ Firebase بنێرە یان بۆ ئەم ئامێرە زیاد بکەرەوە. هیچ شتێک خۆکارانە نانێردرێت؛ ئەو ئەرشیفەی لە Firebase پارێزرا نابێتەوە بە نووسینێکی جیاواز.</p>
+    <div class="grid">
+      <div>
+        <label for="cloud-year-local">ساڵی داخراو لە ئەم ئامێرە</label>
+        <select id="cloud-year-local" disabled><option value="">هێشتا پشکنین نەکراوە</option></select>
+        <div class="actions"><button id="cloud-year-upload" type="button" disabled>☁️ ناردنی ئەم ساڵە بۆ Firebase</button></div>
+      </div>
+      <div>
+        <label for="cloud-year-remote">ساڵی پارێزراو لە Firebase</label>
+        <select id="cloud-year-remote" disabled><option value="">چوونەژوورەوە پێویستە</option></select>
+        <div class="actions"><button id="cloud-year-download" class="secondary" type="button" disabled>📥 زیادکردنی ئەم ساڵە بۆ ئەرشیفی ئامێر</button></div>
+      </div>
+    </div>
+    <div class="actions"><button id="cloud-year-refresh" class="secondary" type="button" disabled>🔎 نوێکردنەوەی لیستی ئەرشیفەکان</button></div>
+    <p id="cloud-year-status" role="status" aria-live="polite">بۆ ناردن یان هێنانەوە پێویستە هەژماری Firebase ـی بەڕێوەبەر هەبێت.</p>
+    <div class="note">سنووری هەر ساڵێکی سەحابی: <strong>٦ MB</strong> (پێش کەمکردنەوەی قەبارە)، زۆرترین <strong>٧٣</strong> نووسین بۆ هەر ناردنێک. ئەرشیفی گەورەتر لە JSON بپارێزە. ئەم تایبەتمەندییە بە Firestore Rules ـی <code>yearArchives</code> پێویستە؛ ئەرشیفەکان زانیاری تایبەتی قوتابییان لەخۆ دەگرن.</div>
+  </section>
   <section id="sync-panel" class="card" hidden>
     <h2>🔄 گواستنەوەی سەلامەت</h2>
     <p>بۆ هاوبەشکردنی داتاکان لەگەڵ ئامێرێکی دیکە، سەرەتا «ناردن بۆ Firebase» لەم ئامێرە بکە، دواتر لە ئامێری دووەم «هێنانەوە لە Firebase» هەڵبژێرە.</p>
@@ -74,5 +94,6 @@ h2{margin:0 0 13px;font-size:17px}p{margin:6px 0}label{font-weight:700;display:b
 </main>
 <script type="module" src="./legacy-sync.js?v=p0-20261108-1"></script>
 <script type="module" src="./social-link.js"></script>
-<script type="module" src="./year-archive-ui.mjs?v=p0-20261109-1"></script>
+<script type="module" src="./year-archive-ui.mjs?v=p0-20261109-2"></script>
+<script type="module" src="./cloud-year-archive.js?v=p0-20261109-1"></script>
 </body></html>
