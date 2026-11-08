@@ -128,6 +128,34 @@ service cloud.firestore {
         && request.resource.data.createdBy == request.auth.uid;
     }
 
+
+    // Cloud sealed-year manifests have fixed fields and bounded payloads.
+    function validYearArchiveManifest() {
+      return request.resource.data.keys().hasOnly([
+          'version', 'chunks', 'encoding', 'sha256', 'byteLength',
+          'label', 'createdAt', 'createdBy'
+        ])
+        && request.resource.data.keys().hasAll([
+          'version', 'chunks', 'encoding', 'sha256', 'byteLength',
+          'label', 'createdAt', 'createdBy'
+        ])
+        && request.resource.data.version is string
+        && request.resource.data.version.matches('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
+        && request.resource.data.chunks is int
+        && request.resource.data.chunks >= 1
+        && request.resource.data.chunks <= 72
+        && request.resource.data.encoding in ['gzip-b64', 'utf8-b64']
+        && request.resource.data.sha256 is string
+        && request.resource.data.sha256.matches('^[0-9a-f]{64}$')
+        && request.resource.data.byteLength is int
+        && request.resource.data.byteLength >= 1
+        && request.resource.data.byteLength <= 6291456
+        && request.resource.data.label is string
+        && request.resource.data.label.size() <= 100
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time;
+    }
+
     match /schools/{schoolId} {
       allow get: if isMember(schoolId);
       allow list, delete: if false;
@@ -169,6 +197,27 @@ service cloud.firestore {
           && validAttendance();
         allow delete: if false;
       }
+
+      // Immutable year snapshots: only active administrators may read/create.
+      match /yearArchives/{archiveId} {
+        allow get, list: if isAdmin(schoolId);
+        allow create: if isAdmin(schoolId)
+          && archiveId.matches('^[a-zA-Z0-9_-]{1,100}$')
+          && validYearArchiveManifest();
+        allow update, delete: if false;
+
+        match /versions/{version}/chunks/{chunkId} {
+          allow get, list: if isAdmin(schoolId)
+            && archiveId.matches('^[a-zA-Z0-9_-]{1,100}$');
+          allow create: if isAdmin(schoolId)
+            && archiveId.matches('^[a-zA-Z0-9_-]{1,100}$')
+            && version.matches('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
+            && chunkId.matches('^[0-9]{4}$')
+            && validLegacyChunk();
+          allow update, delete: if false;
+        }
+      }
+
       // Administrator-only backups for the full original Daragat module state.
       match /legacySnapshots/{storageKey} {
         allow get, list: if isAdmin(schoolId);

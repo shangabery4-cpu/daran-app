@@ -179,3 +179,6 @@ function init() {
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, {once:true});
 else init();
+
+// Shared, non-mutating archive access for optional manual cloud copies.
+export { source, readRecords, readIndex, addRecords };
