@@ -25,7 +25,7 @@ h2{margin:0 0 13px;font-size:17px}p{margin:6px 0}label{font-weight:700;display:b
 <body>
 <main class="wrap">
   <div class="heading"><h1>☁️ پاشەکەوتی سەحابیی دارەجات</h1><p>پەیوەستکردنی تۆمارەکانی وەشانی ئەسڵی دارەجات بە Firebase — بە هەمان ڕووکار و پەڕەکان</p></div>
-  <div class="note">ئەم بەشە تەنها ئەو داتایانە دەپارێزێت کە لە لیستی خوارەوەدا دیاریکراون. <strong>ئەرشیفی ساڵانی پێشوو لە IndexedDB، و داتای بەشی ئامادەبوونی ئۆنلاین بە جیاوازن</strong> و لێرەدا ناگوێزرێنەوە. بۆ ساڵەکانی پێشوو لە مێنیوی ئەرشیف فایلی JSON دابگرە.</div>
+  <div class="note">ئەم بەشە تەنها ئەو داتایانە دەپارێزێت کە لە لیستی خوارەوەدا دیاریکراون. <strong>ئەرشیفی ساڵانی پێشوو لە IndexedDB، و داتای بەشی ئامادەبوونی ئۆنلاین بە جیاوازن</strong> و لێرەدا ناگوێزرێنەوە. ئەرشیفەکان دەتوانیت بە یەدەکی JSON ـی جیاواز داگرێیت و بگەڕێنیتەوە، بەڵام هێشتا لە Firebase نانێردرێن.</div>
   <div class="note">بۆ پاراستنی هەژمارەکان، وشە نهێنی، زانیارییەکانی چالاککردن و مۆڵەتەکان <strong>هەرگیز</strong> بۆ ئەم پاشەکەوتە ناگوێزرێنەوە. ئەمە لەگەڵ تۆماری ئامادەبوونی نوێی ئۆنلاین، دوو سەرچاوەی جیاوازن؛ تۆمارەکان خۆکارانە یەکناخرێن.</div>
   <div id="feedback" role="status" aria-live="polite">سیستەمی هاوکاتکردن ئامادە دەکرێت…</div>
   <progress id="progress" max="100" value="0" hidden></progress>
@@ -51,6 +51,16 @@ h2{margin:0 0 13px;font-size:17px}p{margin:6px 0}label{font-weight:700;display:b
       <div id="key-list" class="list"></div>
     </section>
   </div>
+  <section class="card" id="year-archive-panel">
+    <h2>🗄️ ئەرشیفی ساڵەکانی پێشوو — یەدەکی سەربەخۆ</h2>
+    <p>هەموو ساڵە کۆتایی‌پێهاتووەکان لە IndexedDB بخەرە فایلێکی JSON، یان لە ئامێرێکی دیکە زیاد بکەرەوە. هێنانەوە تەنها ئەرشیفە نوێکان زیاد دەکات؛ نمرە و قوتابییەکانی ساڵی ئێستا و ئەرشیفە پێشووترەکان ناگۆڕێت.</p>
+    <div class="actions">
+      <button id="download-year-archives" class="secondary" type="button">⬇️ داگرتنی هەموو ئەرشیفەکان (JSON)</button>
+      <button id="import-year-archives" class="secondary" type="button">📥 هێنانەوەی ئەرشیفی ساڵەکان</button>
+      <input id="year-archive-file" type="file" accept=".json,application/json" hidden />
+    </div>
+    <p id="year-archive-status" role="status" aria-live="polite">ئەم هەڵبژاردنە بە Firebase پەیوەست نییە. فایلەکە زانیارییە تایبەتییەکانی ساڵەکانی پێشوو لەخۆ دەگرێت؛ لە شوێنێکی پارێزراو هەڵیبگرە.</p>
+  </section>
   <section id="sync-panel" class="card" hidden>
     <h2>🔄 گواستنەوەی سەلامەت</h2>
     <p>بۆ هاوبەشکردنی داتاکان لەگەڵ ئامێرێکی دیکە، سەرەتا «ناردن بۆ Firebase» لەم ئامێرە بکە، دواتر لە ئامێری دووەم «هێنانەوە لە Firebase» هەڵبژێرە.</p>
@@ -64,4 +74,5 @@ h2{margin:0 0 13px;font-size:17px}p{margin:6px 0}label{font-weight:700;display:b
 </main>
 <script type="module" src="./legacy-sync.js?v=p0-20261108-1"></script>
 <script type="module" src="./social-link.js"></script>
+<script type="module" src="./year-archive-ui.mjs?v=p0-20261109-1"></script>
 </body></html>
