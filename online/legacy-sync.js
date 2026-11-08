@@ -1,8 +1,9 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js';
-import { getFirestore, collection, doc, getDoc, getDocs, setDoc, writeBatch, serverTimestamp } from 'https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js';
+import { getFirestore, collection, doc, getDoc, getDocs, runTransaction, writeBatch, serverTimestamp } from 'https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js';
 import { firebaseConfig, schoolId } from './config.js';
 import { MODULE_KEYS, collectLocal, encodeSnapshot, decodeSnapshot, verifiedSnapshotKeys } from './legacy-sync-core.mjs';
+import { assertExpectedVersion, sameContent } from './backup-version.mjs';
 
 const $ = (id) => document.getElementById(id);
 const numbers = '٠١٢٣٤٥٦٧٨٩';
@@ -39,6 +40,7 @@ function errorText(error) {
   if (error?.message === 'open-original-menu') return 'بۆ پاراستنی دروستی وێنە و بەڵگەکان، ئەم بەشە لە مێنیوی بەرنامەی ئەسڵی دارەجات بکەرەوە، نەک بە لینکێکی جیاواز.';
   if (error?.code === 'permission-denied') return 'Firestore Rules مۆڵەتی ئەم کارەت نادات. یاساکانی legacySnapshots لە Firebase Console بڵاو بکەرەوە و ڕۆڵەکەت بپشکنە.';
   if (error?.code?.startsWith('auth/')) return 'ئیمەیڵ، وشەی نهێنی یان پەیوەندیی Firebase ڕاست نییە.';
+  if (error?.message === 'backup-conflict') return 'ئامێرێکی دیکە لە نێواندا پاشەکەوتی Firebase ـی نوێی ناردووە. هیچ وەشانێکی ئێستا نەگۆڕدرا؛ دۆخ نوێ بکەرەوە و پاشان بڕیار بدە.';
   if (error?.message === 'too-large') return 'یەکێک لە بەشەکان زۆر گەورەیە (زیاتر لە سنووری پاراستن). بڕی وێنە و بەڵگەکان کەم بکەرەوە.';
   if (error?.message === 'snapshot-corrupted' || error?.message === 'invalid-snapshot') return 'پاشەکەوتێکی سەحابی تەواو نییە یان گۆڕاوە؛ هیچ داتایەک نەهێنرایەوە.';
   return 'کارەکە سەرکەوتوو نەبوو: ' + String(error?.message || 'هەڵەی نەناسراو').slice(0, 180);
@@ -46,7 +48,7 @@ function errorText(error) {
 
 function busy(value) {
   state.busy = value;
-  for (const id of ['push', 'pull', 'refresh', 'logout']) $(id).disabled = value;
+  for (const id of ['push', 'pull', 'refresh', 'logout', 'download-local']) $(id).disabled = value;
   $('login-form').querySelectorAll('button,input').forEach((item) => { item.disabled = value; });
   $('progress').hidden = !value;
   if (!value) $('progress').value = 0;
@@ -89,7 +91,7 @@ async function refreshCloud() {
 async function uploadOne(key, raw) {
   const encoded = await encodeSnapshot(raw);
   const prior = state.latest.get(key);
-  if (prior && prior.sha256 === encoded.sha256) return false; // Nothing changed; no writes.
+  if (sameContent(prior, encoded.sha256)) return false; // Nothing changed; no writes.
   const version = crypto.randomUUID();
   const base = doc(state.db, ...rootPath, key);
   // Keep batches small: membership lookup in Firestore Rules has a per-batch limit.
@@ -105,18 +107,54 @@ async function uploadOne(key, raw) {
     });
     await batch.commit();
   }
-  // Manifest is committed LAST. Partial uploads cannot become the current version.
-  await setDoc(base, {
-    version,
-    chunks: encoded.chunks.length,
-    encoding: encoded.encoding,
-    sha256: encoded.sha256,
-    byteLength: encoded.byteLength,
-    updatedAt: serverTimestamp(),
-    updatedBy: state.user.uid
+  // Commit the manifest LAST and only if no other device has replaced the
+  // version observed when this upload started. Avoids silent lost updates.
+  await runTransaction(state.db, async (transaction) => {
+    const current = await transaction.get(base);
+    assertExpectedVersion(prior, current.exists() ? current.data() : null);
+    transaction.set(base, {
+      version,
+      chunks: encoded.chunks.length,
+      encoding: encoded.encoding,
+      sha256: encoded.sha256,
+      byteLength: encoded.byteLength,
+      updatedAt: serverTimestamp(),
+      updatedBy: state.user.uid
+    });
   });
   state.latest.set(key, { version, sha256: encoded.sha256, chunks: encoded.chunks.length });
   return true;
+}
+
+async function downloadLocal() {
+  if (state.busy) return;
+  busy(true);
+  try {
+    await prepareOriginalStore();
+    const modules = localSummary();
+    const count = Object.keys(modules).length;
+    if (!count) return notice('هیچ بەشێکی پاشەکەوتکراو لە ئامێرەکەدا نەدۆزرایەوە.', true);
+    const payload = JSON.stringify({
+      format: 'daragat-selected-local-backup',
+      version: 1,
+      createdAt: new Date().toISOString(),
+      moduleKeys: Object.keys(modules),
+      modules
+    });
+    const url = URL.createObjectURL(new Blob([payload], { type: 'application/json' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'daragat-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    notice('داگرتنی یەدەکی ناوخۆیی بۆ ' + num(count) + ' بەش داوا کرا. فایلەکە لە شوێنێکی پارێزراو هەڵبگرە. ئەرشیفی ساڵانی پێشوو و داتاکانی بەشی ئۆنلاینی جیاواز لەم فایلەدا نین.');
+  } catch (error) {
+    notice(errorText(error), true);
+  } finally {
+    busy(false);
+  }
 }
 
 async function push() {
@@ -237,6 +275,7 @@ function start() {
   });
   $('logout').addEventListener('click', () => signOut(state.auth).catch((error) => notice(errorText(error), true)));
   $('push').addEventListener('click', push);
+  $('download-local').addEventListener('click', downloadLocal);
   $('pull').addEventListener('click', pull);
   $('refresh').addEventListener('click', async () => {
     if (state.busy) return;

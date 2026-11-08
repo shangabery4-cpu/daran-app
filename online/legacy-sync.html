@@ -25,6 +25,7 @@ h2{margin:0 0 13px;font-size:17px}p{margin:6px 0}label{font-weight:700;display:b
 <body>
 <main class="wrap">
   <div class="heading"><h1>☁️ پاشەکەوتی سەحابیی دارەجات</h1><p>پەیوەستکردنی تۆمارەکانی وەشانی ئەسڵی دارەجات بە Firebase — بە هەمان ڕووکار و پەڕەکان</p></div>
+  <div class="note">ئەم بەشە تەنها ئەو داتایانە دەپارێزێت کە لە لیستی خوارەوەدا دیاریکراون. <strong>ئەرشیفی ساڵانی پێشوو لە IndexedDB، و داتای بەشی ئامادەبوونی ئۆنلاین بە جیاوازن</strong> و لێرەدا ناگوێزرێنەوە. بۆ ساڵەکانی پێشوو لە مێنیوی ئەرشیف فایلی JSON دابگرە.</div>
   <div class="note">بۆ پاراستنی هەژمارەکان، وشە نهێنی، زانیارییەکانی چالاککردن و مۆڵەتەکان <strong>هەرگیز</strong> بۆ ئەم پاشەکەوتە ناگوێزرێنەوە. ئەمە لەگەڵ تۆماری ئامادەبوونی نوێی ئۆنلاین، دوو سەرچاوەی جیاوازن؛ تۆمارەکان خۆکارانە یەکناخرێن.</div>
   <div id="feedback" role="status" aria-live="polite">سیستەمی هاوکاتکردن ئامادە دەکرێت…</div>
   <progress id="progress" max="100" value="0" hidden></progress>
@@ -41,10 +42,12 @@ h2{margin:0 0 13px;font-size:17px}p{margin:6px 0}label{font-weight:700;display:b
       <small>تەنها هەژماری بەڕێوەبەری چالاک دەتوانێت پاشەکەوت و گەڕاندنەوە بکات.</small>
     </section>
     <section class="card">
-      <h2>📚 تۆمارەکانی بەرنامە</h2>
+      <h2>📚 بەشە دیاریکراوەکانی پاشەکەوت</h2>
       <p>بەشەکان لە هەمان وێبگەڕ کۆ دەکرێنەوە؛ هیچیان لە سێرڤەر نانووسرێت تا تۆ داوا نەکەیت.</p>
       <p><strong id="local-count">٠</strong> بەش لە ئامێری ئێستا • <strong id="cloud-count">—</strong> لە Firebase</p>
       <small id="size-label"></small>
+      <div class="actions"><button id="download-local" class="secondary" type="button">💾 داگرتنی یەدەکی ناوخۆیی (JSON)</button></div>
+      <small>ئەم فایلە تەنها بۆ بەشە دیاریکراوەکانە و وشەی نهێنی و هەژمارەکان تێدا نییە.</small>
       <div id="key-list" class="list"></div>
     </section>
   </div>
