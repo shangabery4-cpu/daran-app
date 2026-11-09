@@ -10,9 +10,9 @@ import { source, readRecords, readIndex, addRecords } from './year-archive-ui.mj
 import { planYearArchiveImport } from './year-archive-core.mjs';
 import {
   yearPackage, checkEncodedYear, validateCloudYearManifest,
-  uploadDecision, validateDownloadedYear, CLOUD_YEAR_MAX_BYTES,
+  uploadDecision, validateDownloadedYear, isActiveYearAdmin, CLOUD_YEAR_MAX_BYTES,
   CLOUD_YEAR_LIST_LIMIT
-} from './cloud-year-archive-core.mjs';
+} from './cloud-year-archive-core.mjs?v=p0-20261109-2';
 
 const $ = id => document.getElementById(id);
 const ROOT = ['schools', schoolId, 'yearArchives'];
@@ -27,6 +27,7 @@ function status(message, error = false) {
 function errorText(error) {
   if (error?.message === 'open-original-menu') return 'سەرەتا لە مێنیوی بەرنامەی ئەسڵی دارەجات ئەم پەڕەیە بکەرەوە.';
   if (error?.message === 'admin-required') return 'تەنها هەژماری بەڕێوەبەری چالاک دەستڕاگەیشتنی هەیە.';
+  if (error?.message === 'cloud-year-not-selected') return 'سەرەتا ساڵێکی سەحابی هەڵبژێرە.';
   if (error?.message === 'cloud-year-too-large' || error?.message === 'too-large') return 'ئەم ساڵە بۆ پاشەکەوتی سەحابی زۆر گەورەیە (سنووری ٦ MB). لە سەرەوە یەدەکی JSON دابگرە.';
   if (error?.message === 'cloud-year-private-key') return 'ئەم ئەرشیفە داتای هەژمار/دانیشتن لەخۆ دەگرێت و بۆ سەحابی نانێردرێت.';
   if (error?.message === 'cloud-year-conflict' || error?.message === 'archive-conflict') return 'ئەرشیفێکی جیاواز بە هەمان ناسنامە هەیە؛ هیچ داتایەکی هەبوو نەگۆڕدرا.';
@@ -37,9 +38,13 @@ function errorText(error) {
 
 function setBusy(value) {
   state.busy = value;
-  for (const id of ['cloud-year-upload', 'cloud-year-download', 'cloud-year-refresh', 'cloud-year-local', 'cloud-year-remote']) {
-    $(id).disabled = value || !state.authorized;
-  }
+  const blocked = value || !state.authorized;
+  $('cloud-year-upload').disabled = blocked || state.records.length === 0;
+  $('cloud-year-download').disabled = blocked || state.cloud.size === 0;
+  $('cloud-year-save').disabled = blocked || state.cloud.size === 0;
+  $('cloud-year-refresh').disabled = blocked;
+  $('cloud-year-local').disabled = blocked || state.records.length === 0;
+  $('cloud-year-remote').disabled = blocked || state.cloud.size === 0;
 }
 
 function assertAdmin() {
@@ -71,6 +76,7 @@ async function refresh() {
   result.forEach(snap => cloud.set(snap.id, validateCloudYearManifest(snap.data(), snap.id)));
   state.cloud = cloud;
   fillSelect($('cloud-year-remote'), [...cloud].map(([id, meta]) => [id, meta.label || id]), 'ئەرشیفی سەحابی نییە');
+  setBusy(state.busy);
   status('ئەرشیفی ناوخۆیی: ' + state.records.length + ' ساڵ؛ سەحابی: ' + cloud.size + ' ساڵ. ' +
     (cloud.size === CLOUD_YEAR_LIST_LIMIT ? 'تەنها ١٠٠ ئەرشیفی یەکەم پیشان دەدرێن.' : 'هیچ شتێک بەخۆکار نانێردرێت.'));
 }
@@ -129,11 +135,8 @@ async function upload() {
   });
 }
 
-async function download() {
-  await withBusy(async () => {
-    await source();
-    const id = $('cloud-year-remote').value;
-    if (!id) return status('سەرەتا ساڵێکی سەحابی هەڵبژێرە.', true);
+async function fetchVerifiedCloudYear(id) {
+    if (!id) throw new Error('cloud-year-not-selected');
     const base = await getDoc(doc(state.db, ...ROOT, id));
     if (!base.exists()) throw new Error('cloud-year-corrupt');
     const meta = validateCloudYearManifest(base.data(), id);
@@ -148,6 +151,32 @@ async function download() {
     if (chunks.some(chunk => typeof chunk !== 'string')) throw new Error('cloud-year-corrupt');
     const raw = await decodeSnapshot({ ...meta, chunks });
     const archive = validateDownloadedYear(raw, id);
+    return { meta, archive };
+}
+
+async function saveCloudYear() {
+  await withBusy(async () => {
+    await source();
+    const id = $('cloud-year-remote').value;
+    const { meta, archive } = await fetchVerifiedCloudYear(id);
+    // A verified JSON copy can be saved without any local archive mutation.
+    const url = URL.createObjectURL(new Blob([JSON.stringify(archive)], {type: 'application/json'}));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'daragat-cloud-year-' + id + '.json';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    status('یەدەکی JSON بۆ «' + meta.label + '» داواکرا. پێش داگرتن پشکنینی SHA-256 کرا؛ ئەرشیفی ناوخۆیی نەگۆڕدرا. فایلەکە زانیاریی تایبەتییە.');
+  });
+}
+
+async function download() {
+  await withBusy(async () => {
+    await source();
+    const id = $('cloud-year-remote').value;
+    const { meta, archive } = await fetchVerifiedCloudYear(id);
     const main = await source();
     const [existing, index] = await Promise.all([readRecords(), Promise.resolve(readIndex(main))]);
     const plan = planYearArchiveImport(existing, index, archive);
@@ -171,11 +200,12 @@ async function download() {
 }
 
 function start() {
-  for (const id of ['cloud-year-upload','cloud-year-download','cloud-year-refresh']) {
+  for (const id of ['cloud-year-upload','cloud-year-download','cloud-year-save','cloud-year-refresh']) {
     $(id).disabled = true;
   }
   $('cloud-year-upload').addEventListener('click', upload);
   $('cloud-year-download').addEventListener('click', download);
+  $('cloud-year-save').addEventListener('click', saveCloudYear);
   $('cloud-year-refresh').addEventListener('click', () => withBusy(refresh));
   try {
     const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
@@ -189,7 +219,7 @@ function start() {
       try {
         const member = await getDoc(doc(state.db, 'schools', schoolId, 'members', user.uid));
         if (state.auth.currentUser?.uid !== user.uid) return;
-        if (!member.exists() || member.data().active !== true || member.data().role !== 'admin') throw new Error('admin-required');
+        if (!member.exists() || !isActiveYearAdmin(member.data(), user.uid, state.auth.currentUser?.uid)) throw new Error('admin-required');
         state.user = user;
         state.authorized = true;
         setBusy(state.busy);

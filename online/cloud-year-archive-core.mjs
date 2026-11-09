@@ -9,6 +9,12 @@ const ID = /^[a-zA-Z0-9_-]{1,100}$/;
 const DIGEST = /^[0-9a-f]{64}$/;
 const PRIVATE_KEYS = new Set(['schoolResultsSession_v1', 'schoolResultsCloud_v1', 'schoolResultsWifiSync_v1']);
 
+// Client-side guard; Firestore Rules are the authoritative permission check.
+export function isActiveYearAdmin(member, userId, activeUserId) {
+  return Boolean(userId && activeUserId === userId && member &&
+    member.active === true && member.role === 'admin');
+}
+
 function ensureNoPrivateKeys(packageData) {
   for (const record of packageData.records) {
     const stored = JSON.parse(record.snapshot).store;

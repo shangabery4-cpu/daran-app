@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   yearPackage, checkEncodedYear, validateCloudYearManifest,
-  uploadDecision, validateDownloadedYear, CLOUD_YEAR_MAX_BYTES, CLOUD_YEAR_MAX_CHUNKS
+  uploadDecision, validateDownloadedYear, isActiveYearAdmin, CLOUD_YEAR_MAX_BYTES, CLOUD_YEAR_MAX_CHUNKS
 } from '../online/cloud-year-archive-core.mjs';
 
 const id = '2024_2025';
@@ -35,4 +35,11 @@ test('manifest rejects corrupt, forged or oversized chunk metadata', () => {
   assert.throws(() => validateCloudYearManifest({...manifest, version:'bad'},id), /cloud-year-corrupt/);
   assert.throws(() => validateCloudYearManifest({...manifest,chunks:101},id), /cloud-year-corrupt/);
   assert.throws(() => validateCloudYearManifest(manifest,'bad/id'), /cloud-year-corrupt/);
+});
+test('admin role guard rejects staff, viewer, inactive, and mismatched sessions', () => {
+  assert.equal(isActiveYearAdmin({active:true,role:'admin'},'a','a'),true);
+  assert.equal(isActiveYearAdmin({active:true,role:'staff'},'a','a'),false);
+  assert.equal(isActiveYearAdmin({active:true,role:'viewer'},'a','a'),false);
+  assert.equal(isActiveYearAdmin({active:false,role:'admin'},'a','a'),false);
+  assert.equal(isActiveYearAdmin({active:true,role:'admin'},'a','b'),false);
 });

@@ -62,6 +62,13 @@ select{direction:rtl;text-align:right}.actions{display:flex;gap:10px;flex-wrap:w
     <p id="year-archive-status" role="status" aria-live="polite">ئەم هەڵبژاردنە بە Firebase پەیوەست نییە. فایلەکە زانیارییە تایبەتییەکانی ساڵەکانی پێشوو لەخۆ دەگرێت؛ لە شوێنێکی پارێزراو هەڵیبگرە.</p>
   </section>
 
+  <section class="card" id="archive-check-panel">
+    <h2>🧪 پشکنینی بێ مەترسیی ئەرشیف</h2>
+    <p>٧ تاقیکردنەوە بە داتای ساختە لە بیرگەی وێبگەڕدا دەکات: دۆزینەوەی تێکچوون، دووبارەنووسین، conflict، و دەسەڵاتی بەڕێوەبەر. <strong>هیچ داتای قوتابخانە ناخوێنێتەوە و هیچ شتێک بۆ Firebase نانێرێت.</strong></p>
+    <div class="actions"><button id="year-archive-selftest" class="secondary" type="button">🧪 دەستپێکردنی پشکنینی ٧ قۆناغەیی</button></div>
+    <p id="year-archive-selftest-result" role="status" aria-live="polite">ئەم پشکنینە تاقیکردنەوەی ڕاستەقینەی سێرڤەری Firebase نییە.</p>
+  </section>
+
   <section class="card" id="cloud-year-panel">
     <h2>☁️ ئەرشیفی سەحابیی ساڵانی داخراو — بە دەستی بەڕێوەبەر</h2>
     <p>هەر ساڵێکی ئەرشیفکراو بە جیا بۆ Firebase بنێرە یان بۆ ئەم ئامێرە زیاد بکەرەوە. هیچ شتێک خۆکارانە نانێردرێت؛ ئەو ئەرشیفەی لە Firebase پارێزرا نابێتەوە بە نووسینێکی جیاواز.</p>
@@ -74,7 +81,8 @@ select{direction:rtl;text-align:right}.actions{display:flex;gap:10px;flex-wrap:w
       <div>
         <label for="cloud-year-remote">ساڵی پارێزراو لە Firebase</label>
         <select id="cloud-year-remote" disabled><option value="">چوونەژوورەوە پێویستە</option></select>
-        <div class="actions"><button id="cloud-year-download" class="secondary" type="button" disabled>📥 زیادکردنی ئەم ساڵە بۆ ئەرشیفی ئامێر</button></div>
+        <div class="actions"><button id="cloud-year-download" class="secondary" type="button" disabled>📥 زیادکردنی ئەم ساڵە بۆ ئەرشیفی ئامێر</button>
+        <button id="cloud-year-save" class="secondary" type="button" disabled>⬇️ داگرتنی JSON ـی ئەرشیفی سەحابی</button></div>
       </div>
     </div>
     <div class="actions"><button id="cloud-year-refresh" class="secondary" type="button" disabled>🔎 نوێکردنەوەی لیستی ئەرشیفەکان</button></div>
@@ -95,5 +103,6 @@ select{direction:rtl;text-align:right}.actions{display:flex;gap:10px;flex-wrap:w
 <script type="module" src="./legacy-sync.js?v=p0-20261108-1"></script>
 <script type="module" src="./social-link.js"></script>
 <script type="module" src="./year-archive-ui.mjs?v=p0-20261109-2"></script>
-<script type="module" src="./cloud-year-archive.js?v=p0-20261109-1"></script>
+<script type="module" src="./cloud-year-archive.js?v=p0-20261109-2"></script>
+<script type="module" src="./year-archive-selftest.mjs?v=p0-20261109-1"></script>
 </body></html>
