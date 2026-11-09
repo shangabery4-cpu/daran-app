@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   yearPackage, checkEncodedYear, validateCloudYearManifest,
-  uploadDecision, validateDownloadedYear, isActiveYearAdmin, CLOUD_YEAR_MAX_BYTES, CLOUD_YEAR_MAX_CHUNKS
+  uploadDecision, validateDownloadedYear, isActiveYearAdmin,
+  makeYearVerificationReceipt, parseYearVerificationReceipt, matchesYearVerificationReceipt,
+  CLOUD_YEAR_MAX_BYTES, CLOUD_YEAR_MAX_CHUNKS
 } from '../online/cloud-year-archive-core.mjs';
 
 const id = '2024_2025';
@@ -42,4 +44,30 @@ test('admin role guard rejects staff, viewer, inactive, and mismatched sessions'
   assert.equal(isActiveYearAdmin({active:true,role:'viewer'},'a','a'),false);
   assert.equal(isActiveYearAdmin({active:false,role:'admin'},'a','a'),false);
   assert.equal(isActiveYearAdmin({active:true,role:'admin'},'a','b'),false);
+});
+
+test('device A and B can match the same fully verified cloud manifest without exposing records', () => {
+  const proof = makeYearVerificationReceipt(manifest, id, 'daragat-sorani');
+  const decoded = parseYearVerificationReceipt(proof);
+  assert.equal(decoded.archiveId, id);
+  assert.equal(decoded.schoolId, 'daragat-sorani');
+  assert.equal(proof.includes('schoolResultsGradebook'), false);
+  assert.equal(matchesYearVerificationReceipt(proof, {...manifest}, id, 'daragat-sorani'), true);
+});
+
+test('comparison rejects changed manifest and wrong school or selected year', () => {
+  const proof = makeYearVerificationReceipt(manifest, id, 'daragat-sorani');
+  assert.equal(matchesYearVerificationReceipt(proof, {...manifest, sha256:'b'.repeat(64)}, id, 'daragat-sorani'), false);
+  assert.equal(matchesYearVerificationReceipt(proof, manifest, id, 'different-school'), false);
+  assert.equal(matchesYearVerificationReceipt(proof, {...manifest}, '2025_2026', 'daragat-sorani'), false);
+  assert.equal(matchesYearVerificationReceipt(proof, {...manifest, version:'00000000-0000-0000-0000-000000000001'}, id, 'daragat-sorani'), false);
+});
+
+test('comparison proof rejects corrupted JSON, unknown fields, malformed hashes and oversized input', () => {
+  const proof = makeYearVerificationReceipt(manifest, id, 'daragat-sorani');
+  assert.throws(() => parseYearVerificationReceipt('{'), /receipt-invalid/);
+  assert.throws(() => parseYearVerificationReceipt(proof + 'x'.repeat(1100)), /receipt-invalid/);
+  assert.throws(() => parseYearVerificationReceipt(JSON.stringify({...JSON.parse(proof), unexpected: true})), /receipt-invalid/);
+  assert.throws(() => parseYearVerificationReceipt(JSON.stringify({...JSON.parse(proof), sha256:'bad'})), /receipt-invalid/);
+  assert.throws(() => makeYearVerificationReceipt(manifest, id, 'school/id'), /receipt-invalid/);
 });
