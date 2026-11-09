@@ -10,9 +10,11 @@ import { source, readRecords, readIndex, addRecords } from './year-archive-ui.mj
 import { planYearArchiveImport } from './year-archive-core.mjs';
 import {
   yearPackage, checkEncodedYear, validateCloudYearManifest,
-  uploadDecision, validateDownloadedYear, isActiveYearAdmin, CLOUD_YEAR_MAX_BYTES,
+  uploadDecision, validateDownloadedYear, isActiveYearAdmin,
+  makeYearVerificationReceipt, parseYearVerificationReceipt, matchesYearVerificationReceipt,
+  CLOUD_YEAR_MAX_BYTES,
   CLOUD_YEAR_LIST_LIMIT
-} from './cloud-year-archive-core.mjs?v=p0-20261109-2';
+} from './cloud-year-archive-core.mjs?v=p0-20261109-3';
 
 const $ = id => document.getElementById(id);
 const ROOT = ['schools', schoolId, 'yearArchives'];
@@ -28,6 +30,7 @@ function errorText(error) {
   if (error?.message === 'open-original-menu') return 'سەرەتا لە مێنیوی بەرنامەی ئەسڵی دارەجات ئەم پەڕەیە بکەرەوە.';
   if (error?.message === 'admin-required') return 'تەنها هەژماری بەڕێوەبەری چالاک دەستڕاگەیشتنی هەیە.';
   if (error?.message === 'cloud-year-not-selected') return 'سەرەتا ساڵێکی سەحابی هەڵبژێرە.';
+  if (error?.message === 'cloud-year-receipt-invalid') return 'کۆدی بەراورد نادروستە. دەقی تەواوی کۆدی ئامێری یەکەم دابنێ.';
   if (error?.message === 'cloud-year-too-large' || error?.message === 'too-large') return 'ئەم ساڵە بۆ پاشەکەوتی سەحابی زۆر گەورەیە (سنووری ٦ MB). لە سەرەوە یەدەکی JSON دابگرە.';
   if (error?.message === 'cloud-year-private-key') return 'ئەم ئەرشیفە داتای هەژمار/دانیشتن لەخۆ دەگرێت و بۆ سەحابی نانێردرێت.';
   if (error?.message === 'cloud-year-conflict' || error?.message === 'archive-conflict') return 'ئەرشیفێکی جیاواز بە هەمان ناسنامە هەیە؛ هیچ داتایەکی هەبوو نەگۆڕدرا.';
@@ -43,6 +46,8 @@ function setBusy(value) {
   $('cloud-year-download').disabled = blocked || state.cloud.size === 0;
   $('cloud-year-save').disabled = blocked || state.cloud.size === 0;
   $('cloud-year-refresh').disabled = blocked;
+  $('cloud-year-proof-create').disabled = blocked || state.cloud.size === 0;
+  $('cloud-year-proof-check').disabled = blocked || state.cloud.size === 0;
   $('cloud-year-local').disabled = blocked || state.records.length === 0;
   $('cloud-year-remote').disabled = blocked || state.cloud.size === 0;
 }
@@ -172,6 +177,40 @@ async function saveCloudYear() {
   });
 }
 
+// Read and verify the complete remote archive before producing or comparing
+// a receipt. Neither action changes IndexedDB, localStorage, or Firestore.
+async function createVerificationReceipt() {
+  await withBusy(async () => {
+    const id = $('cloud-year-remote').value;
+    const { meta } = await fetchVerifiedCloudYear(id);
+    assertAdmin();
+    const proof = makeYearVerificationReceipt(meta, id, schoolId);
+    const field = $('cloud-year-proof-code');
+    field.value = proof;
+    field.focus();
+    field.select();
+    status('کۆدی بەراورد ئامادەیە. لە ئامێری دووەم دایبنێ و «بەراوردکردن» بکە. تەنها خوێندنەوەی Firebase کرا؛ هیچ داتایەک نەگۆڕدرا.');
+  });
+}
+
+async function compareVerificationReceipt() {
+  await withBusy(async () => {
+    const code = $('cloud-year-proof-code').value;
+    const id = $('cloud-year-remote').value;
+    if (!id) throw new Error('cloud-year-not-selected');
+    const receipt = parseYearVerificationReceipt(code);
+    if (receipt.schoolId !== schoolId || receipt.archiveId !== id) {
+      return status('⚠️ کۆدی ئامێری یەکەم بۆ قوتابخانە یان ساڵێکی جیاوازە. هیچ خوێندنەوەی سەحابی نەکرا.', true);
+    }
+    const { meta } = await fetchVerifiedCloudYear(id);
+    assertAdmin();
+    const same = matchesYearVerificationReceipt(code, meta, id, schoolId);
+    status(same
+      ? '✅ هەمان ئەرشیفی سەحابی لەم ئامێرەش بە SHA-256 پشتڕاست کرایەوە. ئەمە بەراوردی خوێندنەوەیە؛ ساڵی کارا نەگۆڕدرا.'
+      : '⚠️ کۆدی ئامێری یەکەم لەگەڵ ئەم ئەرشیفە ناگونجێت. قوتابخانە، ساڵ و وەشانی هەڵبژێردراو بپشکنە؛ هیچ داتایەک نەگۆڕدرا.', !same);
+  });
+}
+
 async function download() {
   await withBusy(async () => {
     await source();
@@ -200,13 +239,15 @@ async function download() {
 }
 
 function start() {
-  for (const id of ['cloud-year-upload','cloud-year-download','cloud-year-save','cloud-year-refresh']) {
+  for (const id of ['cloud-year-upload','cloud-year-download','cloud-year-save','cloud-year-refresh','cloud-year-proof-create','cloud-year-proof-check']) {
     $(id).disabled = true;
   }
   $('cloud-year-upload').addEventListener('click', upload);
   $('cloud-year-download').addEventListener('click', download);
   $('cloud-year-save').addEventListener('click', saveCloudYear);
   $('cloud-year-refresh').addEventListener('click', () => withBusy(refresh));
+  $('cloud-year-proof-create').addEventListener('click', createVerificationReceipt);
+  $('cloud-year-proof-check').addEventListener('click', compareVerificationReceipt);
   try {
     const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
     state.auth = getAuth(app);
