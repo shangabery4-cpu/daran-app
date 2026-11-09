@@ -1,0 +1,13 @@
+{
+  "name": "daragat-sorani-rules-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:rules:node": "node --test tests/firestore.rules.test.mjs",
+    "test:rules": "npx --yes firebase-tools@latest emulators:exec --project demo-daragat-sorani-rules --only firestore \"npm run test:rules:node\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "firebase": "^11.0.0"
+  }
+}
