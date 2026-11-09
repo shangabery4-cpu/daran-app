@@ -11,8 +11,8 @@
 .heading{background:linear-gradient(125deg,#0e7160,#154439);color:#fff;border-radius:21px;padding:23px;box-shadow:0 13px 24px #143b3330}
 .heading h1{font-size:23px;margin:0 0 6px}.heading p{margin:0;opacity:.9;font-size:13px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:17px 0}.card{background:#fff;border:1px solid var(--line);border-radius:17px;padding:18px;box-shadow:0 5px 14px #143b3310}
-h2{margin:0 0 13px;font-size:17px}p{margin:6px 0}label{font-weight:700;display:block;margin:8px 0 4px}input,select{width:100%;min-width:0;display:block;border:1px solid #c5d7cd;border-radius:11px;padding:12px;font:inherit;direction:ltr;text-align:left;background:#fff}
-select{direction:rtl;text-align:right}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}button{font:700 14px Tahoma,"Segoe UI",sans-serif;border:1px solid transparent;padding:12px 17px;border-radius:11px;cursor:pointer;background:var(--green);color:white}button:hover:not(:disabled){filter:brightness(.94)}button.secondary{background:#edf7f1;border-color:#b9d7c8;color:#145641}button.warn{background:var(--rose)}button:disabled{cursor:not-allowed;opacity:.5}
+h2{margin:0 0 13px;font-size:17px}p{margin:6px 0}label{font-weight:700;display:block;margin:8px 0 4px}input,select,textarea{width:100%;min-width:0;display:block;border:1px solid #c5d7cd;border-radius:11px;padding:12px;font:inherit;direction:ltr;text-align:left;background:#fff}
+select{direction:rtl;text-align:right}textarea{resize:vertical;min-height:104px;direction:ltr;text-align:left;overflow-wrap:anywhere;font:13px/1.6 ui-monospace,monospace}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}button{font:700 14px Tahoma,"Segoe UI",sans-serif;border:1px solid transparent;padding:12px 17px;border-radius:11px;cursor:pointer;background:var(--green);color:white}button:hover:not(:disabled){filter:brightness(.94)}button.secondary{background:#edf7f1;border-color:#b9d7c8;color:#145641}button.warn{background:var(--rose)}button:disabled{cursor:not-allowed;opacity:.5}
 .badge{display:inline-block;background:#eaf5ee;color:#176245;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:700}.badge.off{background:#fff1e6;color:#9a4e10}
 .note{background:#fff7e8;color:#7a572b;border:1px solid #f4dfba;padding:12px 15px;border-radius:12px;margin-top:15px;font-size:13px}.ok{color:#056f4e}.error{color:#b72c3d}
 .list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}.item{border:1px solid var(--line);background:#fbfdfb;border-radius:10px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}.item span{color:var(--muted);font-size:12px}
@@ -87,6 +87,13 @@ select{direction:rtl;text-align:right}.actions{display:flex;gap:10px;flex-wrap:w
     </div>
     <div class="actions"><button id="cloud-year-refresh" class="secondary" type="button" disabled>🔎 نوێکردنەوەی لیستی ئەرشیفەکان</button></div>
     <p id="cloud-year-status" role="status" aria-live="polite">بۆ ناردن یان هێنانەوە پێویستە هەژماری Firebase ـی بەڕێوەبەر هەبێت.</p>
+    <div class="note">🔎 بەراوردی دوو ئامێر: ئەم کارە تەنها ئەرشیفی هەبوو لە Firebase دەخوێنێتەوە و بە SHA-256 دڵنیایی لە یەکسانبوونی دەکات. <strong>هیچ داتایەک نانووسرێت</strong>؛ بەڵام خوێندنەوەکان دەتوانن لە quota حساب بکرێن. ئەمە تاقیکردنەوەی ڕاستەقینەی نووسین/دەسەڵاتی Firestore Rules نییە.</div>
+    <label for="cloud-year-proof-code">کۆدی بەراوردی ئەرشیفی سەحابی (بۆ ئامێری دووەم)</label>
+    <textarea id="cloud-year-proof-code" maxlength="1024" rows="4" spellcheck="false" dir="ltr" placeholder="لەم ئامێرە کۆد دروست بکە، یان کۆدی ئامێری یەکەم دابنێ."></textarea>
+    <div class="actions">
+      <button id="cloud-year-proof-create" class="secondary" type="button" disabled>🔎 دروستکردنی کۆدی بەراورد</button>
+      <button id="cloud-year-proof-check" class="secondary" type="button" disabled>✅ بەراوردکردنی ئەم ئامێرە</button>
+    </div>
     <div class="note">سنووری هەر ساڵێکی سەحابی: <strong>٦ MB</strong> (پێش کەمکردنەوەی قەبارە)، زۆرترین <strong>٧٣</strong> نووسین بۆ هەر ناردنێک. ئەرشیفی گەورەتر لە JSON بپارێزە. ئەم تایبەتمەندییە بە Firestore Rules ـی <code>yearArchives</code> پێویستە؛ ئەرشیفەکان زانیاری تایبەتی قوتابییان لەخۆ دەگرن.</div>
   </section>
   <section id="sync-panel" class="card" hidden>
@@ -103,6 +110,6 @@ select{direction:rtl;text-align:right}.actions{display:flex;gap:10px;flex-wrap:w
 <script type="module" src="./legacy-sync.js?v=p0-20261108-1"></script>
 <script type="module" src="./social-link.js"></script>
 <script type="module" src="./year-archive-ui.mjs?v=p0-20261109-2"></script>
-<script type="module" src="./cloud-year-archive.js?v=p0-20261109-2"></script>
+<script type="module" src="./cloud-year-archive.js?v=p0-20261109-3"></script>
 <script type="module" src="./year-archive-selftest.mjs?v=p0-20261109-1"></script>
 </body></html>
