@@ -8,6 +8,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const ID = /^[a-zA-Z0-9_-]{1,100}$/;
 const DIGEST = /^[0-9a-f]{64}$/;
 const PRIVATE_KEYS = new Set(['schoolResultsSession_v1', 'schoolResultsCloud_v1', 'schoolResultsWifiSync_v1']);
+const RECEIPT_FORMAT = 'daragat-year-receipt-v1';
+const RECEIPT_KEYS = ['archiveId', 'byteLength', 'chunks', 'encoding', 'format', 'schoolId', 'sha256', 'version'];
 
 // Client-side guard; Firestore Rules are the authoritative permission check.
 export function isActiveYearAdmin(member, userId, activeUserId) {
@@ -55,6 +57,45 @@ export function validateCloudYearManifest(meta, id) {
     throw new Error('cloud-year-corrupt');
   }
   return meta;
+}
+
+// A read-only comparison receipt. It contains a digest and identifiers, never
+// student records, and is only produced after verifying downloaded chunks.
+export function makeYearVerificationReceipt(meta, id, schoolId) {
+  validateCloudYearManifest(meta, id);
+  if (!ID.test(schoolId)) throw new Error('cloud-year-receipt-invalid');
+  return JSON.stringify({
+    format: RECEIPT_FORMAT, schoolId, archiveId: id,
+    version: meta.version, sha256: meta.sha256,
+    byteLength: meta.byteLength, chunks: meta.chunks, encoding: meta.encoding
+  });
+}
+
+export function parseYearVerificationReceipt(text) {
+  if (typeof text !== 'string' || text.length > 1024 || text.length < 20) {
+    throw new Error('cloud-year-receipt-invalid');
+  }
+  let receipt;
+  try { receipt = JSON.parse(text); } catch { throw new Error('cloud-year-receipt-invalid'); }
+  if (!receipt || Array.isArray(receipt) || typeof receipt !== 'object' ||
+    Object.keys(receipt).sort().join('|') !== RECEIPT_KEYS.join('|') ||
+    receipt.format !== RECEIPT_FORMAT || !ID.test(receipt.schoolId) ||
+    !ID.test(receipt.archiveId)) {
+    throw new Error('cloud-year-receipt-invalid');
+  }
+  try {
+    validateCloudYearManifest({ ...receipt, label: '' }, receipt.archiveId);
+  } catch { throw new Error('cloud-year-receipt-invalid'); }
+  return receipt;
+}
+
+export function matchesYearVerificationReceipt(text, meta, id, schoolId) {
+  validateCloudYearManifest(meta, id);
+  const proof = parseYearVerificationReceipt(text);
+  return proof.schoolId === schoolId && proof.archiveId === id &&
+    proof.version === meta.version && proof.sha256 === meta.sha256 &&
+    proof.byteLength === meta.byteLength && proof.chunks === meta.chunks &&
+    proof.encoding === meta.encoding;
 }
 
 export function uploadDecision(remote, encoded, id) {
